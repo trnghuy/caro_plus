@@ -8,8 +8,8 @@ import lombok.*;
 @RequiredArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "game")
-public class Game {
+@Table(name = "room_player")
+public class RoomPlayer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,16 +19,8 @@ public class Game {
     private Room room;
 
     @ManyToOne
-    @JoinColumn(name = "player_x")
-    private User playerX;
-
-    @ManyToOne
-    @JoinColumn(name = "player_o")
-    private User playerO;
-
-    @ManyToOne
-    @JoinColumn(name = "winner_id")
+    @JoinColumn(name = "user_id")
     private User player;
 
-    private String status;
+    private Character symbol;
 }
