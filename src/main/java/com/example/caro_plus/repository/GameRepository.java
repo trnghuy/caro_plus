@@ -1,5 +1,8 @@
 package com.example.caro_plus.repository;
 
-public class GameRepository {
-    
+import com.example.caro_plus.model.Game;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface GameRepository extends JpaRepository<Game, Long> {
+
 }
