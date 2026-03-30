@@ -11,7 +11,108 @@
             --bg-light: #f8f9fa; 
             --footer-bg: #2c3e50;
         }
-        
+        /* User Dropdown Style mới */
+        .user-name img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+.user-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.user-name {
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: white;
+    min-width: 240px; /* Rộng hơn để giống mẫu */
+    box-shadow: 0px 10px 25px rgba(0,0,0,0.1);
+    z-index: 1000;
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid #eee;
+    overflow: hidden;
+}
+
+/* Phần Header bên trong Dropdown */
+.dropdown-header {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-header img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #eef2f7;
+}
+
+.header-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-info .full-name {
+    font-weight: bold;
+    font-size: 15px;
+    color: #2c3e50;
+}
+
+.header-info .user-tag {
+    font-size: 13px;
+    color: #7f8c8d;
+}
+
+/* Các mục menu */
+.dropdown-content a {
+    color: #444;
+    padding: 12px 18px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Khoảng cách cho icon */
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.dropdown-content a i {
+    width: 18px;
+    color: #555;
+}
+
+.dropdown-content a:hover {
+    background-color: #f8f9fa;
+    color: #007bff;
+}
+
+.dropdown-content hr {
+    border: 0;
+    border-top: 1px solid #f0f0f0;
+    margin: 0;
+}
+
+.user-menu:hover .dropdown-content {
+    display: block;
+}
+
         /* CẤU TRÚC STICKY FOOTER */
         html, body {
             height: 100%; /* Bắt buộc để footer biết đáy trang ở đâu */
@@ -96,11 +197,40 @@
             <a href="#">Đấu Trường Online</a>
             <a href="#">Bảng Xếp Hạng</a>
         </nav>
-        <div class="auth-buttons">
-            <button class="btn-show-login" onclick="openModal('login')">Đăng Nhập</button>
-            <button class="btn-show-register" onclick="openModal('register')">Đăng Ký</button>
+<div class="auth-buttons">
+    <th:block th:if="${session.user == null}">
+        <button class="btn-show-login" onclick="openModal('login')">Đăng Nhập</button>
+        <button class="btn-show-register" onclick="openModal('register')">Đăng Ký</button>
+    </th:block>
+
+    <div class="user-menu" th:unless="${session.user == null}">
+        <div class="user-name">
+    <img src="https://i.pravatar.cc/40" alt="avatar">
+    <span th:text="${session.user.username}">Username</span>
+</div>
+        
+        <div class="dropdown-content">
+            <div class="dropdown-header">
+                <i class="fas fa-user-circle avatar-large"></i>
+                <div class="header-info">
+                    <div class="full-name" th:text="${session.user.username}">Username</div>
+                    <div class="user-tag" th:text="'@' + ${session.user.username}">@username</div>
+                </div>
+            </div>
+
+            <a href="/profile"><i class="fas fa-user"></i> Xem Hồ Sơ</a>
+            <a href="/settings"><i class="fas fa-cog"></i> Cài Đặt Tài Khoản</a>
+            <a href="/edit-profile"><i class="fas fa-edit"></i> Chỉnh Sửa Hồ Sơ</a>
+            <hr>
+            <a href="/friends"><i class="fas fa-users"></i> Bạn Bè</a>
+            <a href="/messages"><i class="fas fa-envelope"></i> Tin Nhắn</a>
+            <hr>
+            <a href="/logout" class="logout-link"><i class="fas fa-sign-out-alt"></i> Đăng Xuất</a>
         </div>
-    </header>
+    </div>
+</div>
+
+</header>
 
     <main class="hero">
         <div class="hero-text">

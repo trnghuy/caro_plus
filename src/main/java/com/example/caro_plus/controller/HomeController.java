@@ -10,25 +10,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
     @GetMapping("/")
-    public String index(HttpSession session) {
+    public String index(HttpSession session, Model model) {
+        // Lấy user từ session
         User user = (User) session.getAttribute("user");
 
+        // Nếu đã đăng nhập, truyền đối tượng user sang View
         if (user != null) {
-            return "redirect:/home"; // đã login vào home
+            model.addAttribute("user", user);
         }
 
-        return "welcome";
+        // Trả về duy nhất 1 file giao diện chính (giả sử tên file là index.html)
+        return "welcome"; 
     }
 
-    @GetMapping("/home")
-    public String home(HttpSession session, Model model) {
-        User user = (User) session.getAttribute("user");
-
-        if (user == null) {
-            return "redirect:/"; // 
-        }
-
-        model.addAttribute("user", user);
-        return "home";
-    }
+   
 }

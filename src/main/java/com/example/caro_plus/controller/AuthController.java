@@ -19,40 +19,25 @@ public class AuthController {
 
 
 
-    @PostMapping("/login")
-    public String login(@RequestParam String username,
-                        @RequestParam String password,
-                        @RequestParam(value = "remember", required = false) String remember,
-                        HttpSession session,
-                        HttpServletResponse response,
-                        RedirectAttributes ra) {
-        try {
-            User user = userService.login(username, password);
-            if (user != null) {
-                session.setAttribute("user", user);
-                
-                // Thêm Ghi nhớ đăng nhập (Remember Me)
-                Cookie cookie = new Cookie("rememberedUser", username);
-                cookie.setPath("/");
-                if (remember != null) {
-                    cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
-                } else {
-                    cookie.setMaxAge(0); // Xóa cookie nếu không tích
-                }
-                response.addCookie(cookie);
-
-                return "redirect:/home"; // Đăng nhập xong vào game
-            }
-        } catch (Exception e) {
-            ra.addFlashAttribute("error", "Lỗi: Tài khoản bị trùng lặp trong hệ thống!");
+@PostMapping("/login")
+public String login(@RequestParam String username,
+                    @RequestParam String password,
+                    // ... các params khác
+                    HttpSession session,
+                    RedirectAttributes ra) {
+    try {
+        User user = userService.login(username, password);
+        if (user != null) {
+            session.setAttribute("user", user);
+            return "redirect:/"; // Quay lại trang chủ để HomeController xử lý hiển thị account
         }
-
-        // Nếu thất bại: Quay về trang chủ và tự mở Modal Login
-        ra.addFlashAttribute("error", "Tài khoản hoặc mật khẩu không chính xác!");
-        ra.addFlashAttribute("openModal", "login"); 
-        return "redirect:/";
+    } catch (Exception e) {
+        ra.addFlashAttribute("error", "Lỗi hệ thống!");
     }
-
+    ra.addFlashAttribute("error", "Tài khoản hoặc mật khẩu không chính xác!");
+    ra.addFlashAttribute("openModal", "login"); 
+    return "redirect:/";
+}
     @PostMapping("/register")
     public String register(@ModelAttribute User user, RedirectAttributes ra) {
         if (userService.findByUsername(user.getUsername()) != null) {
