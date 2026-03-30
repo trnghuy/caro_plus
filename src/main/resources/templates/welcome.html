@@ -236,7 +236,11 @@
         <div class="hero-text">
             <h1>Cờ Caro Online</h1>
             <p>Trải nghiệm đỉnh cao cờ Caro cùng cộng đồng game thủ Việt Nam. Thách đấu ngay để khẳng định vị thế!</p>
-            <button class="btn-show-register" style="padding: 15px 40px; font-size: 18px;" onclick="openModal('register')">Chơi Ngay</button>
+            <a href="/lobby">
+    <button class="btn-show-register" style="padding: 15px 40px; font-size: 18px;">
+        Chơi Ngay
+    </button>
+</a>
         </div>
         <div class="hero-image">
             <img src="https://img.freepik.com/free-vector/tic-tac-toe-game-background_23-2148154625.jpg" alt="Board">
@@ -284,7 +288,10 @@
             <div class="footer-section">
                 <h4>Liên Kết</h4>
                 <ul>
-                    <li><a href="#">Trang Chủ</a></li>
+                    
+                    <a href="/">Trang Chủ</a>
+                    <a href="/lobby">Chơi Online</a>
+                    <a href="/room">Phòng</a>
                     <li><a href="#">Đấu Trường</a></li>
                     <li><a href="#">Bảng Xếp Hạng</a></li>
                 </ul>
@@ -353,6 +360,17 @@
         openModal('register');
     }
 };
+
+
+function goToLobby() {
+    const isLoggedIn = /*[[${session.user != null}]]*/ false;
+
+    if (isLoggedIn) {
+        window.location.href = "/lobby";
+    } else {
+        openModal('login');
+    }
+}
     </script>
 </body>
 </html>

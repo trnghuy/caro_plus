@@ -4,6 +4,7 @@ import com.example.caro_plus.model.User;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
@@ -24,4 +25,27 @@ public class HomeController {
     }
 
    
+
+    public String home() {
+        return "menu";
+    }
+
+    @GetMapping("/room")
+    public String room() {
+        return "room/room";
+    }
+
+    @GetMapping("/game")
+    public String game() {
+        return "game/game";
+    }
+
+    @GetMapping("/lobby")
+public String lobby(HttpSession session) {
+    if (session.getAttribute("user") == null) {
+        return "redirect:/?openModal=login";
+    }
+    return "lobby"; // file html lobby
 }
+}
+
