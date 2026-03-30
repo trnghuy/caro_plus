@@ -1,23 +1,33 @@
 package com.example.caro_plus.controller;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import com.example.caro_plus.security.CustomUserDetails;
 
 @Controller
 public class HomeController {
 
     @GetMapping("/")
-    public String home() {
-        return "menu";
+    public String index(@AuthenticationPrincipal CustomUserDetails customUser) {
+
+        if (customUser != null) {
+            return "redirect:/home";
+        }
+
+        return "welcome";
     }
 
-    @GetMapping("/room")
-    public String room() {
-        return "room/room";
-    }
+    @GetMapping("/home")
+    public String home(@AuthenticationPrincipal CustomUserDetails customUser, Model model) {
 
-    @GetMapping("/game")
-    public String game() {
-        return "game/game";
+        if (customUser == null) {
+            return "redirect:/";
+        }
+
+        model.addAttribute("user", customUser.getUser());
+
+        return "home";
     }
 }
