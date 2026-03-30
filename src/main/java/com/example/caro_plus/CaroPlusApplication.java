@@ -8,5 +8,4 @@ public class CaroPlusApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(CaroPlusApplication.class, args);
 	}
-
 }

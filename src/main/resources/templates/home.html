@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Caro Plus - Sảnh chờ</title>
+    <style>
+        .user-info { color: green; font-weight: bold; }
+        .menu { border: 1px solid #ddd; padding: 20px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <h1>Caro Plus - Dashboard</h1>
+    <p>Xin chào, <span class="user-info" th:text="${user.username}">User</span>!</p>
+
+    <div class="menu">
+        <h3>Menu Game</h3>
+        <form action="/room/create" method="post">
+            <button type="submit">Tạo Phòng Mới</button>
+        </form>
+        <br>
+        <button>Danh sách phòng đang chờ</button>
+    </div>
+
+    <hr>
+    <a href="/logout" style="color: red;">Đăng xuất</a>
+</body>
+</html>
