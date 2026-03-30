@@ -1,26 +1,73 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <title>Caro Plus - Sảnh chờ</title>
+<!doctype html>
+<html>
+  <head>
+    <title>Caro Lobby</title>
     <style>
-        .user-info { color: green; font-weight: bold; }
-        .menu { border: 1px solid #ddd; padding: 20px; display: inline-block; }
+      body {
+        font-family: Arial;
+        text-align: center;
+        margin-top: 100px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px;
+        font-size: 16px;
+      }
+      #joinPopup {
+        display: none;
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border: 1px solid #ccc;
+        padding: 20px;
+      }
     </style>
-</head>
-<body>
-    <h1>Caro Plus - Dashboard</h1>
-    <p>Xin chào, <span class="user-info" th:text="${user.username}">User</span>!</p>
+  </head>
+  <body>
+    <h1>Caro Game</h1>
 
-    <div class="menu">
-        <h3>Menu Game</h3>
-        <form action="/room/create" method="post">
-            <button type="submit">Tạo Phòng Mới</button>
-        </form>
-        <br>
-        <button>Danh sách phòng đang chờ</button>
+    <button onclick="createRoom()">Tạo phòng</button>
+    <button onclick="showJoin()">Join phòng</button>
+
+    <div id="joinPopup">
+      <h3>Nhập mã phòng</h3>
+      <input id="roomInput" placeholder="Room ID" />
+      <br /><br />
+      <button onclick="joinRoom()">Join</button>
+      <button onclick="hideJoin()">Cancel</button>
     </div>
 
-    <hr>
-    <a href="/logout" style="color: red;">Đăng xuất</a>
-</body>
+    <script>
+      function showJoin() {
+        document.getElementById("joinPopup").style.display = "block";
+      }
+
+      function hideJoin() {
+        document.getElementById("joinPopup").style.display = "none";
+      }
+
+      async function createRoom() {
+        const res = await fetch("/api/rooms/create", { method: "POST" });
+        const room = await res.json();
+
+        window.location.href = "/room?roomId=" + room.id;
+      }
+
+      async function joinRoom() {
+        const roomId = document.getElementById("roomInput").value;
+
+        const res = await fetch("/api/rooms/join/" + roomId, {
+          method: "POST",
+        });
+
+        if (res.ok) {
+          window.location.href = "/room?roomId=" + roomId;
+        } else {
+          alert("Không join được!");
+        }
+      }
+    </script>
+  </body>
 </html>

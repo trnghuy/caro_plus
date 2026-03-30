@@ -1,14 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head><title>Đăng nhập Caro Plus</title></head>
-<body>
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>Đăng nhập Caro Plus</title>
+  </head>
+  <body>
     <h2>Đăng nhập</h2>
-    <p th:if="${error}" style="color:red" th:text="${error}"></p>
-    <form action="/login" method="post">
-        Username: <input type="text" name="username" required><br>
-        Password: <input type="password" name="password" required><br>
-        <button type="submit">Vào Game</button>
+    <p th:if="${param.error}" style="color: red">Sai username hoặc password!</p>
+    <form th:action="@{/login}" method="post">
+      <!-- <input type="hidden" name="_csrf" th:value="${_csrf.token}" /> -->
+      Username: <input type="text" name="username" required /><br />
+      Password: <input type="password" name="password" required /><br />
+      <button type="submit">Vào Game</button>
     </form>
-    <a href="/register">Chưa có tài khoản? Đăng ký ngay</a>
-</body>
+    <a th:href="@{/register}">Chưa có tài khoản? Đăng ký ngay</a>
+  </body>
 </html>

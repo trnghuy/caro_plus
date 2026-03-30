@@ -16,11 +16,13 @@ public class Room {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String roomCode;
-
     @ManyToOne
     @JoinColumn(name = "host_id")
     private User host;
+
+    @ManyToOne
+    @JoinColumn(name = "player2_id")
+    private User player2;
 
     private String status;
     

@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
   <head>
     <title>Room</title>
     <style>
@@ -37,6 +37,8 @@
 
     <button onclick="startGame()">Play</button>
 
+    <button onclick="leaveRoom()">Leave</button>
+
     <script>
       const urlParams = new URLSearchParams(window.location.search);
       const roomId = urlParams.get("roomId");
@@ -45,10 +47,13 @@
         const res = await fetch("/api/rooms/" + roomId);
         const room = await res.json();
 
-        // giả lập hiển thị (bạn có thể lấy real user sau)
-        document.getElementById("player1").innerText = "Host (X)";
-        document.getElementById("player2").innerText =
-          room.status === "full" ? "Player 2 (O)" : "Waiting...";
+        document.getElementById("player1").innerText = room.host
+          ? room.host.username + " (X)"
+          : "Waiting...";
+
+        document.getElementById("player2").innerText = room.player2
+          ? room.player2.username + " (O)"
+          : "Waiting...";
       }
 
       async function startGame() {
@@ -60,6 +65,18 @@
           window.location.href = "/game?roomId=" + roomId;
         } else {
           alert("Chưa đủ người!");
+        }
+      }
+
+      async function leaveRoom() {
+        const res = await fetch("/api/rooms/leave/" + roomId, {
+          method: "POST",
+        });
+
+        if (res.ok) {
+          window.location.href = "/home";
+        } else {
+          alert("Có lỗi khi rời khỏi phòng!");
         }
       }
 

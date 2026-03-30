@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface RoomPlayerRepository extends JpaRepository<RoomPlayer, Long> {
     List<RoomPlayer> findByRoom(Room room);
 
-    Optional<RoomPlayer> findByRoomAndPlayer(Room room, User player);
+    Optional<RoomPlayer> findByRoomAndPlayer(Room room, User user);
 
     int countByRoom(Room room);
 

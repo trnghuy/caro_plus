@@ -7,8 +7,7 @@ import com.example.caro_plus.repository.RoomPlayerRepository;
 import com.example.caro_plus.repository.RoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
+import java.util.Date;
 
 @Service
 public class RoomService {
@@ -28,6 +27,7 @@ public class RoomService {
 
         Room room = new Room();
         room.setHost(user);
+        room.setCreatedAt(new Date());
         room.setStatus("waiting");
 
         Room savedRoom = roomRepository.save(room);
@@ -49,12 +49,8 @@ public class RoomService {
     // join phòng
     public Room joinRoom(Long roomId, User user) {
 
-        Optional<Room> roomOptional = roomRepository.findById(roomId);
-
-        if (roomOptional.isEmpty())
-            return null;
-
-        Room room = roomOptional.get();
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
         // ❌ đã trong room
         if (roomPlayerRepository.findByRoomAndPlayer(room, user).isPresent()) {
@@ -62,7 +58,7 @@ public class RoomService {
         }
 
         // ❌ full rồi
-        if (roomPlayerRepository.countByRoom(room) >= 2) {
+        if (roomPlayerRepository.countByRoom(room) == 2) {
             return null;
         }
 
@@ -82,15 +78,11 @@ public class RoomService {
         return roomRepository.save(room);
     }
 
-    // leave phòng
-    public void leaveRoom(Long roomId, User user) {
+    // rời phòng
+    public Room leaveRoom(Long roomId, User user) {
 
-        Optional<Room> roomOptional = roomRepository.findById(roomId);
-
-        if (roomOptional.isEmpty())
-            return;
-
-        Room room = roomOptional.get();
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
         roomPlayerRepository.findByRoomAndPlayer(room, user)
                 .ifPresent(roomPlayerRepository::delete);
@@ -98,29 +90,32 @@ public class RoomService {
         int count = roomPlayerRepository.countByRoom(room);
 
         if (count == 0) {
-            roomRepository.delete(room); // xóa luôn room
+            roomRepository.delete(room);
+            return null;
         } else {
             room.setStatus("waiting");
-            roomRepository.save(room);
+            return roomRepository.save(room);
         }
     }
 
     // start game
-    public Room startGame(Long roomId) {
+    public Room startGame(Long roomId, User user) {
 
-        Optional<Room> roomOptional = roomRepository.findById(roomId);
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
-        if (roomOptional.isEmpty())
-            return null;
+        // ❗ check có phải host không
+        if (!room.getHost().getId().equals(user.getId())) {
+            throw new RuntimeException("Chỉ host mới được start game!");
+        }
 
-        Room room = roomOptional.get();
-
+        // ❗ check đủ 2 người
         if (roomPlayerRepository.countByRoom(room) == 2) {
             room.setStatus("playing");
             return roomRepository.save(room);
         }
 
-        return null;
+        throw new RuntimeException("Chưa đủ người để bắt đầu!");
     }
 
     public Room getRoomById(Long roomId) {

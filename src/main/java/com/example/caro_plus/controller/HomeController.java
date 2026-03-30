@@ -16,7 +16,7 @@ public class HomeController {
             return "redirect:/home";
         }
 
-        return "welcome";
+        return "index";
     }
 
     @GetMapping("/home")
@@ -27,7 +27,6 @@ public class HomeController {
         }
 
         model.addAttribute("user", customUser.getUser());
-
         return "home";
     }
 }
