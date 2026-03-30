@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Room</title>
+    <style>
+      body {
+        text-align: center;
+        font-family: Arial;
+      }
+      .container {
+        display: flex;
+        justify-content: center;
+        margin-top: 50px;
+      }
+      .player {
+        width: 200px;
+        height: 150px;
+        border: 2px solid black;
+        margin: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      button {
+        padding: 10px 20px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Room</h2>
+
+    <div class="container">
+      <div class="player" id="player1">Player 1</div>
+      <div class="player" id="player2">Waiting...</div>
+    </div>
+
+    <button onclick="startGame()">Play</button>
+
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get("roomId");
+
+      async function loadRoom() {
+        const res = await fetch("/api/rooms/" + roomId);
+        const room = await res.json();
+
+        // giả lập hiển thị (bạn có thể lấy real user sau)
+        document.getElementById("player1").innerText = "Host (X)";
+        document.getElementById("player2").innerText =
+          room.status === "full" ? "Player 2 (O)" : "Waiting...";
+      }
+
+      async function startGame() {
+        const res = await fetch("/api/rooms/start/" + roomId, {
+          method: "POST",
+        });
+
+        if (res.ok) {
+          window.location.href = "/game?roomId=" + roomId;
+        } else {
+          alert("Chưa đủ người!");
+        }
+      }
+
+      loadRoom();
+    </script>
+  </body>
+</html>

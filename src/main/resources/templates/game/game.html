@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Caro Game</title>
+    <style>
+      body {
+        font-family: Arial;
+        text-align: center;
+      }
+
+      #board {
+        display: grid;
+        grid-template-columns: repeat(20, 30px);
+        justify-content: center;
+        margin-top: 20px;
+      }
+
+      .cell {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #ccc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Game</h2>
+    <div id="turn">Turn: X</div>
+
+    <div id="board"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
+
+    <script>
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get("roomId");
+
+      let board = Array(20)
+        .fill(null)
+        .map(() => Array(20).fill(null));
+      let currentPlayer = "X";
+      let stompClient = null;
+
+      function connectWS() {
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function () {
+          stompClient.subscribe("/topic/game/" + roomId, function (msg) {
+            const data = JSON.parse(msg.body);
+
+            board[data.x][data.y] = data.player;
+            currentPlayer = data.player === "X" ? "O" : "X";
+
+            updateTurn();
+            renderBoard();
+          });
+        });
+      }
+
+      function sendMove(x, y) {
+        if (board[x][y]) return;
+
+        stompClient.send(
+          "/app/move",
+          {},
+          JSON.stringify({
+            roomId: roomId,
+            x: x,
+            y: y,
+            player: currentPlayer,
+          }),
+        );
+      }
+
+      function renderBoard() {
+        const boardDiv = document.getElementById("board");
+        boardDiv.innerHTML = "";
+
+        for (let i = 0; i < 20; i++) {
+          for (let j = 0; j < 20; j++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.innerText = board[i][j] || "";
+            cell.onclick = () => sendMove(i, j);
+            boardDiv.appendChild(cell);
+          }
+        }
+      }
+
+      function updateTurn() {
+        document.getElementById("turn").innerText = "Turn: " + currentPlayer;
+      }
+
+      connectWS();
+      renderBoard();
+    </script>
+  </body>
+</html>
