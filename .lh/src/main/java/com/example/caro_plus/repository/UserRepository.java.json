@@ -1,0 +1,22 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/repository/UserRepository.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1774937611138,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1774937671289,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,9 +1,15 @@\n package com.example.caro_plus.repository;\r\n \r\n import com.example.caro_plus.model.User;\r\n import java.util.Optional;\r\n+import java.util.List;\r\n import org.springframework.data.jpa.repository.JpaRepository;\r\n+import org.springframework.data.jpa.repository.Query;\r\n \r\n+\r\n+\r\n public interface UserRepository extends JpaRepository<User, Long> {\r\n+    @Query(\"SELECT u FROM User u ORDER BY u.rating DESC\")\r\n+    List<User> findTopPlayers();\r\n     Optional<User> findByUsername(String username);\r\n }\n\\ No newline at end of file\n"
+                }
+            ],
+            "date": 1774937611138,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.repository;\r\n\r\nimport com.example.caro_plus.model.User;\r\nimport java.util.Optional;\r\nimport org.springframework.data.jpa.repository.JpaRepository;\r\n\r\npublic interface UserRepository extends JpaRepository<User, Long> {\r\n    Optional<User> findByUsername(String username);\r\n}"
+        }
+    ]
+}

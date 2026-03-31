@@ -26,10 +26,12 @@ public class GameWebSocketController {
 
         String current = gameState.getTurn(message.getRoomId());
 
+        // ❌ sai lượt → ignore
         if (!current.equals(message.getPlayer())) {
             return;
         }
 
+        // đổi lượt
         gameState.switchTurn(message.getRoomId());
 
         messagingTemplate.convertAndSend(

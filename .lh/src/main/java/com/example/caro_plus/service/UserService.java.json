@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/service/UserService.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1774937465652,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1774937465652,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.service;\r\n\r\nimport com.example.caro_plus.model.User;\r\nimport com.example.caro_plus.repository.UserRepository;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.security.crypto.password.PasswordEncoder;\r\nimport org.springframework.stereotype.Service;\r\n\r\nimport java.util.Date;\r\nimport java.util.Optional;\r\n\r\n@Service\r\npublic class UserService {\r\n\r\n    @Autowired\r\n    private UserRepository userRepository;\r\n\r\n    @Autowired\r\n    private PasswordEncoder passwordEncoder;\r\n\r\n    public User login(String username, String password) {\r\n        Optional<User> optionalUser = userRepository.findByUsername(username);\r\n\r\n        if (optionalUser.isPresent()) {\r\n            User user = optionalUser.get();\r\n\r\n            // Dùng passwordEncoder để check mật khẩu đã mã hóa\r\n            if (passwordEncoder.matches(password, user.getPassword())) {\r\n                return user;\r\n            }\r\n        }\r\n        return null;\r\n    }\r\n\r\n    public void register(User user) {\r\n        user.setPassword(passwordEncoder.encode(user.getPassword()));\r\n        user.setCreatedAt(new Date());\r\n        userRepository.save(user);\r\n    }\r\n\r\n    public User findByUsername(String username) {\r\n        Optional<User> optionalUser = userRepository.findByUsername(username);\r\n        return optionalUser.orElse(null);\r\n    }\r\n}"
+        }
+    ]
+}

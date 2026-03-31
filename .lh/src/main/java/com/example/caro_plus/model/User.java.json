@@ -1,0 +1,22 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/model/User.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 1,
+            "patches": [
+                {
+                    "date": 1774937237664,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1774937312737,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -20,9 +20,9 @@\n     private String username;\r\n \r\n     @NotBlank(message = \"password is required\")\r\n     private String password;\r\n-    \r\n+    @Column(name = \"rating\")\r\n     private Date createdAt;\r\n     private int rating = 1000; // điểm ELO\r\n     private int win = 0;\r\n     private int lose = 0;\r\n"
+                }
+            ],
+            "date": 1774937237664,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.model;\r\n\r\nimport java.util.Date;\r\nimport jakarta.persistence.*;\r\nimport jakarta.validation.constraints.NotBlank;\r\nimport lombok.*;\r\n\r\n@Setter\r\n@Getter\r\n@RequiredArgsConstructor\r\n@AllArgsConstructor\r\n@Entity\r\n@Table(name = \"user\")\r\npublic class User {\r\n    @Id\r\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\r\n    private Long id;\r\n\r\n    @NotBlank(message = \"username is required\")\r\n    private String username;\r\n\r\n    @NotBlank(message = \"password is required\")\r\n    private String password;\r\n    \r\n    private Date createdAt;\r\n    private int rating = 1000; // điểm ELO\r\n    private int win = 0;\r\n    private int lose = 0;\r\n    private int draw = 0;\r\n}\r\n"
+        }
+    ]
+}
