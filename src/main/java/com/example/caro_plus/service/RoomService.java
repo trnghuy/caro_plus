@@ -69,6 +69,7 @@ public class RoomService {
         rp.setSymbol('O');
 
         roomPlayerRepository.save(rp);
+        room.setPlayer2(user);
 
         // đủ 2 người → full
         if (roomPlayerRepository.countByRoom(room) == 2) {
@@ -93,6 +94,10 @@ public class RoomService {
             roomRepository.delete(room);
             return null;
         } else {
+            if (room.getPlayer2() != null && room.getPlayer2().getId().equals(user.getId())) {
+                room.setPlayer2(null);
+            }
+
             room.setStatus("waiting");
             return roomRepository.save(room);
         }

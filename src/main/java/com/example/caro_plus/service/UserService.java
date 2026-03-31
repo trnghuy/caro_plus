@@ -42,4 +42,23 @@ public class UserService {
         Optional<User> optionalUser = userRepository.findByUsername(username);
         return optionalUser.orElse(null);
     }
+
+    public User getPersistedUser(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        if (user.getId() != null) {
+            Optional<User> byId = userRepository.findById(user.getId());
+            if (byId.isPresent()) {
+                return byId.get();
+            }
+        }
+
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return findByUsername(user.getUsername());
+        }
+
+        return null;
+    }
 }
