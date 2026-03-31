@@ -76,6 +76,81 @@ public class GameState {
         return response;
     }
 
+    public synchronized GameMessage requestReplay(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null || session.winner == null) {
+            return null;
+        }
+
+        String symbol = resolvePlayerSymbol(session, username);
+        if (symbol == null || session.replayRequester != null) {
+            return null;
+        }
+
+        session.replayRequester = username;
+
+        GameMessage response = new GameMessage();
+        response.setType("REPLAY_REQUEST");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        response.setPlayer(symbol);
+        return response;
+    }
+
+    public synchronized GameMessage acceptReplay(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null || session.replayRequester == null || session.replayRequester.equals(username)) {
+            return null;
+        }
+
+        if (resolvePlayerSymbol(session, username) == null) {
+            return null;
+        }
+
+        resetBoard(session);
+
+        GameMessage response = new GameMessage();
+        response.setType("REPLAY_ACCEPTED");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        response.setCurrentTurn(session.currentTurn);
+        return response;
+    }
+
+    public synchronized GameMessage declineReplay(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null || session.replayRequester == null || session.replayRequester.equals(username)) {
+            return null;
+        }
+
+        if (resolvePlayerSymbol(session, username) == null) {
+            return null;
+        }
+
+        String requester = session.replayRequester;
+        session.replayRequester = null;
+
+        GameMessage response = new GameMessage();
+        response.setType("REPLAY_DECLINED");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        response.setContent(requester);
+        return response;
+    }
+
+    public synchronized GameMessage createPlayerLeftMessage(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null || resolvePlayerSymbol(session, username) == null) {
+            return null;
+        }
+
+        GameMessage response = new GameMessage();
+        response.setType("PLAYER_LEFT");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        return response;
+    }
+
     private String resolvePlayerSymbol(RoomSession session, String username) {
         if (username.equals(session.playerX)) {
             return "X";
@@ -107,12 +182,20 @@ public class GameState {
         return count;
     }
 
+    private void resetBoard(RoomSession session) {
+        session.board = new String[BOARD_SIZE][BOARD_SIZE];
+        session.currentTurn = "X";
+        session.winner = null;
+        session.replayRequester = null;
+    }
+
     private static class RoomSession {
-        private final String[][] board = new String[BOARD_SIZE][BOARD_SIZE];
+        private String[][] board = new String[BOARD_SIZE][BOARD_SIZE];
         private final String playerX;
         private final String playerO;
         private String currentTurn = "X";
         private String winner;
+        private String replayRequester;
 
         private RoomSession(String playerX, String playerO) {
             this.playerX = playerX;

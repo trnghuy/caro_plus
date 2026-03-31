@@ -4,6 +4,7 @@ import com.example.caro_plus.config.GameState;
 import com.example.caro_plus.model.GameMessage;
 import com.example.caro_plus.model.Room;
 import com.example.caro_plus.security.CustomUserDetails;
+import com.example.caro_plus.service.GameService;
 import com.example.caro_plus.service.RoomService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -28,6 +29,9 @@ public class GameController {
 
     @Autowired
     private GameState gameState;
+
+    @Autowired
+    private GameService gameService;
 
     @GetMapping("/game")
     public String game(@RequestParam Long roomId,
@@ -69,6 +73,52 @@ public class GameController {
         }
 
         GameMessage response = gameState.makeMove(roomId, principal.getName(), message.getX(), message.getY());
+        if (response != null) {
+            if ("WIN".equals(response.getType())) {
+                Room room = roomService.getRoomById(roomId);
+                if (room != null) {
+                    gameService.finishGame(room, response.getWinner());
+                }
+            }
+            simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
+        }
+    }
+
+    @MessageMapping("/game.replay.request/{roomId}")
+    public void requestReplay(@DestinationVariable Long roomId, Principal principal) {
+        if (principal == null) {
+            return;
+        }
+
+        GameMessage response = gameState.requestReplay(roomId, principal.getName());
+        if (response != null) {
+            simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
+        }
+    }
+
+    @MessageMapping("/game.replay.accept/{roomId}")
+    public void acceptReplay(@DestinationVariable Long roomId, Principal principal) {
+        if (principal == null) {
+            return;
+        }
+
+        GameMessage response = gameState.acceptReplay(roomId, principal.getName());
+        if (response != null) {
+            Room room = roomService.getRoomById(roomId);
+            if (room != null) {
+                gameService.createGame(room);
+            }
+            simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
+        }
+    }
+
+    @MessageMapping("/game.replay.decline/{roomId}")
+    public void declineReplay(@DestinationVariable Long roomId, Principal principal) {
+        if (principal == null) {
+            return;
+        }
+
+        GameMessage response = gameState.declineReplay(roomId, principal.getName());
         if (response != null) {
             simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
         }

@@ -31,6 +31,9 @@ public class RoomService {
     @Autowired
     private GameState gameState;
 
+    @Autowired
+    private GameService gameService;
+
     // tạo phòng
     public Room createRoom(User user) {
 
@@ -113,12 +116,8 @@ public class RoomService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
-        if (room.getHost().getId().equals(user.getId())) {
-            roomPlayerRepository.deleteAll(roomPlayerRepository.findByRoom(room));
-            roomRepository.delete(room);
-            gameState.removeRoom(roomId);
-            return null;
-        }
+        boolean wasPlaying = "playing".equals(room.getStatus()) || gameState.hasRoom(roomId);
+        boolean isHostLeaving = room.getHost() != null && room.getHost().getId().equals(user.getId());
 
         roomPlayerRepository.findByRoomAndPlayer(room, user)
                 .ifPresent(roomPlayerRepository::delete);
@@ -129,23 +128,38 @@ public class RoomService {
             gameState.removeRoom(roomId);
             roomRepository.delete(room);
             return null;
-        } else {
-            if (room.getPlayer2() != null && room.getPlayer2().getId().equals(user.getId())) {
-                room.setPlayer2(null);
-            }
-            room.setStatus("waiting");
-            gameState.removeRoom(roomId);
-            Room savedRoom = roomRepository.save(room);
+        }
+        if (isHostLeaving) {
+            User newHost = room.getPlayer2();
+            room.setHost(newHost);
+            room.setPlayer2(null);
+
+            roomPlayerRepository.findByRoomAndPlayer(room, newHost)
+                    .ifPresent(roomPlayer -> roomPlayer.setSymbol('X'));
+        } else if (room.getPlayer2() != null && room.getPlayer2().getId().equals(user.getId())) {
+            room.setPlayer2(null);
+        }
+
+        room.setStatus("waiting");
+        gameState.removeRoom(roomId);
+        Room savedRoom = roomRepository.save(room);
 
             // Gửi thông báo qua WebSocket
-        GameMessage msg = new GameMessage();
-            msg.setType("LEAVE");
-            msg.setSender(user.getUsername());
-            msg.setRoomId(roomId.toString());
-            sendRoomEventAfterCommit(roomId, msg);
+        GameMessage roomMessage = new GameMessage();
+        roomMessage.setType("LEAVE");
+        roomMessage.setSender(user.getUsername());
+        roomMessage.setRoomId(roomId.toString());
+        sendRoomEventAfterCommit(roomId, roomMessage);
 
-            return savedRoom;
+        if (wasPlaying) {
+            GameMessage gameMessage = new GameMessage();
+            gameMessage.setType("PLAYER_LEFT");
+            gameMessage.setSender(user.getUsername());
+            gameMessage.setRoomId(roomId.toString());
+            sendGameEventAfterCommit(roomId, gameMessage);
         }
+
+        return savedRoom;
     }
 
     // start game
@@ -168,6 +182,7 @@ public class RoomService {
         room.setStatus("playing");
         Room savedRoom = roomRepository.save(room);
         gameState.initializeRoom(roomId, room.getHost().getUsername(), room.getPlayer2().getUsername());
+        gameService.createGame(savedRoom);
 
             // Gửi thông báo qua WebSocket
             GameMessage msg = new GameMessage();
@@ -200,5 +215,19 @@ public class RoomService {
         }
 
         simpMessagingTemplate.convertAndSend("/topic/room/" + roomId, message);
+    }
+
+    private void sendGameEventAfterCommit(Long roomId, GameMessage message) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, message);
+                }
+            });
+            return;
+        }
+
+        simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, message);
     }
 }

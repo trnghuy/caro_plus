@@ -25,6 +25,60 @@
         cursor: pointer;
         user-select: none;
       }
+
+      #status {
+        margin-top: 8px;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+      }
+
+      .modal.show {
+        display: flex;
+      }
+
+      .modal-card {
+        min-width: 320px;
+        max-width: 420px;
+        padding: 24px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .modal-card h3 {
+        margin-top: 0;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      button {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .primary-btn {
+        background: #111827;
+        color: white;
+      }
+
+      .secondary-btn {
+        background: #e5e7eb;
+        color: #111827;
+      }
     </style>
   </head>
   <body>
@@ -32,6 +86,43 @@
     <div id="turn">Turn: X</div>
     <div id="status"></div>
     <div id="board"></div>
+
+    <div class="modal" id="winnerModal">
+      <div class="modal-card">
+        <h3>Game Finished</h3>
+        <p id="winnerMessage"></p>
+        <div class="modal-actions">
+          <button class="primary-btn" onclick="requestReplay()">
+            Chơi lại
+          </button>
+          <button class="secondary-btn" onclick="leaveRoom()">
+            Thoát phòng
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="replayRequestModal">
+      <div class="modal-card">
+        <h3>Replay Request</h3>
+        <p id="replayRequestMessage"></p>
+        <div class="modal-actions">
+          <button class="primary-btn" onclick="acceptReplay()">
+            Đồng ý
+          </button>
+          <button class="secondary-btn" onclick="declineReplay()">
+            Từ chối
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="waitingReplayModal">
+      <div class="modal-card">
+        <h3>Đang chờ</h3>
+        <p id="waitingReplayMessage"></p>
+      </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
@@ -42,15 +133,16 @@
       const currentUsername = /*[[${user.username}]]*/ "guest";
       const playerSymbol = /*[[${playerSymbol}]]*/ "";
       const initialTurn = /*[[${currentTurn}]]*/ "X";
+      const hostUsername = /*[[${room.host.username}]]*/ "host";
+      const playerTwoUsername = /*[[${room.player2.username}]]*/ "player2";
       /*]]>*/
     </script>
 
     <script>
-      let board = Array(20)
-        .fill(null)
-        .map(() => Array(20).fill(null));
+      let board = createEmptyBoard();
       let currentPlayer = initialTurn;
       let winner = null;
+      let winnerSymbol = null;
       let stompClient = null;
 
       function connectWS() {
@@ -60,22 +152,7 @@
         stompClient.connect({}, function () {
           stompClient.subscribe("/topic/game/" + roomId, function (msg) {
             const data = JSON.parse(msg.body);
-
-            if (data.x == null || data.y == null || !data.player) {
-              return;
-            }
-
-            board[data.x][data.y] = data.player;
-            currentPlayer = data.currentTurn || currentPlayer;
-            winner = data.winner || winner;
-
-            updateTurn();
-            renderBoard();
-
-            if (data.type === "WIN" && data.winner) {
-              document.getElementById("status").innerText =
-                data.winner + " wins the game!";
-            }
+            handleSocketMessage(data);
           });
         });
       }
@@ -98,6 +175,65 @@
         );
       }
 
+      function createEmptyBoard() {
+        return Array(20)
+          .fill(null)
+          .map(() => Array(20).fill(null));
+      }
+
+      function handleSocketMessage(data) {
+        if (data.type === "MOVE" || data.type === "WIN") {
+          if (data.x == null || data.y == null || !data.player) {
+            return;
+          }
+
+          board[data.x][data.y] = data.player;
+          currentPlayer = data.currentTurn || currentPlayer;
+          winner = data.winner || winner;
+          winnerSymbol = data.type === "WIN" ? data.player : winnerSymbol;
+
+          updateTurn();
+          renderBoard();
+
+          if (data.type === "WIN" && data.winner) {
+            showWinnerModal(data.winner, data.player);
+          }
+          return;
+        }
+
+        if (data.type === "REPLAY_REQUEST") {
+          hideWinnerModal();
+          if (data.sender === currentUsername) {
+            showWaitingReplayModal(
+              "Dang cho " + getOpponentUsername() + " tra loi loi moi choi lai...",
+            );
+          } else {
+            showReplayRequestModal(data.sender);
+          }
+          return;
+        }
+
+        if (data.type === "REPLAY_ACCEPTED") {
+          resetGame(data.currentTurn || "X");
+          hideAllModals();
+          return;
+        }
+
+        if (data.type === "REPLAY_DECLINED") {
+          hideWaitingReplayModal();
+          hideReplayRequestModal();
+          if (winner && winnerSymbol) {
+            showWinnerModal(winner, winnerSymbol);
+          }
+          return;
+        }
+
+        if (data.type === "PLAYER_LEFT" && data.sender !== currentUsername) {
+          alert(data.sender + " đã thoát phòng");
+          window.location.href = "/room?roomId=" + roomId;
+        }
+      }
+
       function renderBoard() {
         const boardDiv = document.getElementById("board");
         boardDiv.innerHTML = "";
@@ -114,15 +250,98 @@
       }
 
       function updateTurn() {
-        const turnText = winner
-          ? "Winner: " + winner
-          : "Turn: " + currentPlayer;
+        const turnText = winner ? "Game finished" : "Turn: " + currentPlayer;
         document.getElementById("turn").innerText = turnText;
         document.getElementById("status").innerText = winner
           ? "Your symbol: " + playerSymbol
           : "Your symbol: " +
             playerSymbol +
             (playerSymbol === currentPlayer ? " | Your turn" : " | Opponent's turn");
+      }
+
+      function showWinnerModal(winnerUsername, symbol) {
+        document.getElementById("winnerMessage").innerText =
+          "Winner la " + winnerUsername + " voi symbol " + symbol + ".";
+        document.getElementById("winnerModal").classList.add("show");
+      }
+
+      function hideWinnerModal() {
+        document.getElementById("winnerModal").classList.remove("show");
+      }
+
+      function showReplayRequestModal(requesterUsername) {
+        document.getElementById("replayRequestMessage").innerText =
+          requesterUsername + " muốn chơi lại. Bạn có đồng ý không?";
+        document.getElementById("replayRequestModal").classList.add("show");
+      }
+
+      function hideReplayRequestModal() {
+        document.getElementById("replayRequestModal").classList.remove("show");
+      }
+
+      function showWaitingReplayModal(message) {
+        document.getElementById("waitingReplayMessage").innerText = message;
+        document.getElementById("waitingReplayModal").classList.add("show");
+      }
+
+      function hideWaitingReplayModal() {
+        document.getElementById("waitingReplayModal").classList.remove("show");
+      }
+
+      function hideAllModals() {
+        hideWinnerModal();
+        hideReplayRequestModal();
+        hideWaitingReplayModal();
+      }
+
+      function getOpponentUsername() {
+        return currentUsername === hostUsername ? playerTwoUsername : hostUsername;
+      }
+
+      function requestReplay() {
+        if (!winner || !stompClient || !stompClient.connected) return;
+
+        hideWinnerModal();
+        showWaitingReplayModal(
+          "Đang gửi lời mời cho " + getOpponentUsername() + "...",
+        );
+
+        stompClient.send("/app/game.replay.request/" + roomId, {}, "{}");
+      }
+
+      function acceptReplay() {
+        if (!stompClient || !stompClient.connected) return;
+        stompClient.send("/app/game.replay.accept/" + roomId, {}, "{}");
+      }
+
+      function declineReplay() {
+        if (!stompClient || !stompClient.connected) return;
+        hideReplayRequestModal();
+        if (winner && winnerSymbol) {
+          showWinnerModal(winner, winnerSymbol);
+        }
+        stompClient.send("/app/game.replay.decline/" + roomId, {}, "{}");
+      }
+
+      async function leaveRoom() {
+        const res = await fetch("/api/rooms/leave/" + roomId, {
+          method: "POST",
+        });
+
+        if (res.ok) {
+          window.location.href = "/home";
+        } else {
+          alert("Có lỗi khi thoát phòng");
+        }
+      }
+
+      function resetGame(nextTurn) {
+        board = createEmptyBoard();
+        currentPlayer = nextTurn;
+        winner = null;
+        winnerSymbol = null;
+        updateTurn();
+        renderBoard();
       }
 
       connectWS();
