@@ -21,6 +21,11 @@ public class User {
 
     @NotBlank(message = "password is required")
     private String password;
-    
+
     private Date createdAt;
+
+    private int rating = 1000; // điểm ELO
+    private int win = 0;
+    private int lose = 0;
+    private int draw = 0;
 }
