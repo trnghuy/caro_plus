@@ -1,593 +1,145 @@
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <head>
     <meta charset="UTF-8" />
-    <title>Caro Plus - Chơi Cờ Caro Trực Tuyến</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      .user-name img {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-      }
-      :root {
-        --primary-color: #007bff;
-        --primary-hover: #0056b3;
-        --bg-light: #f8f9fa;
-        --footer-bg: #2c3e50;
-      }
-      /* User Dropdown Style mới */
-
-      .user-menu {
-        position: relative;
-        display: inline-block;
-      }
-
-      .user-name {
-        font-weight: 500;
-        color: #333;
-        cursor: pointer;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: white;
-      }
-
-      .dropdown-content {
-        display: none;
-        position: absolute;
-        right: 0;
-        background-color: white;
-        min-width: 240px; /* Rộng hơn để giống mẫu */
-        box-shadow: 0px 10px 25px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        border-radius: 12px;
-        margin-top: 10px;
-        border: 1px solid #eee;
-        overflow: hidden;
-      }
-
-      /* Phần Header bên trong Dropdown */
-      .dropdown-header {
-        padding: 15px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        border-bottom: 1px solid #f0f0f0;
-      }
-
-      .dropdown-header img {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #eef2f7;
-      }
-
-      .header-info {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .header-info .full-name {
-        font-weight: bold;
-        font-size: 15px;
-        color: #2c3e50;
-      }
-
-      .header-info .user-tag {
-        font-size: 13px;
-        color: #7f8c8d;
-      }
-
-      /* Các mục menu */
-      .dropdown-content a {
-        color: #444;
-        padding: 12px 18px;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 12px; /* Khoảng cách cho icon */
-        font-size: 14px;
-        transition: 0.2s;
-      }
-
-      .dropdown-content a i {
-        width: 18px;
-        color: #555;
-      }
-
-      .dropdown-content a:hover {
-        background-color: #f8f9fa;
-        color: #007bff;
-      }
-
-      .dropdown-content hr {
-        border: 0;
-        border-top: 1px solid #f0f0f0;
-        margin: 0;
-      }
-
-      .user-menu:hover .dropdown-content {
-        display: block;
-      }
-
-      /* CẤU TRÚC STICKY FOOTER */
-      html,
-      body {
-        height: 100%; /* Bắt buộc để footer biết đáy trang ở đâu */
-        margin: 0;
-      }
-
-      body {
-        font-family: "Roboto", sans-serif;
-        background-color: #fff;
-        display: flex;
-        flex-direction: column;
-      }
-
-      /* Header */
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px 10%;
-        border-bottom: 1px solid #eee;
-        background: white;
-        flex-shrink: 0;
-      }
-      .logo {
-        font-size: 24px;
-        font-weight: bold;
-        color: var(--primary-color);
-        text-decoration: none;
-      }
-      nav a {
-        margin: 0 15px;
-        text-decoration: none;
-        color: #333;
-        font-weight: 500;
-      }
-      .auth-buttons button {
-        padding: 8px 20px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-weight: bold;
-        border: none;
-        transition: 0.3s;
-      }
-      .btn-show-login {
-        background: transparent;
-        color: var(--primary-color);
-        border: 1px solid var(--primary-color) !important;
-        margin-right: 10px;
-      }
-      .btn-show-register {
-        background: var(--primary-color);
-        color: white;
-      }
-      .btn-show-register:hover {
-        background: var(--primary-hover);
-      }
-
-      /* Hero Section - flex: 1 giúp đẩy footer xuống dưới cùng */
-      .hero {
-        display: flex;
-        padding: 60px 10%;
-        align-items: center;
-        background: var(--bg-light);
-        flex: 1 0 auto; /* Đảm bảo hero chiếm hết khoảng trống giữa nhưng không bị co lại quá mức */
-      }
-      .hero-text {
-        flex: 1;
-        text-align: left;
-      }
-      .hero-text h1 {
-        font-size: 48px;
-        margin-bottom: 20px;
-        color: #333;
-      }
-      .hero-text p {
-        font-size: 18px;
-        color: #666;
-        margin-bottom: 30px;
-      }
-      .hero-image {
-        flex: 1;
-        text-align: right;
-      }
-      .hero-image img {
-        width: 100%;
-        max-width: 500px;
-        border-radius: 10px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      }
-
-      /* Footer - flex-shrink: 0 để footer không bị méo */
-      footer {
-        background: var(--footer-bg);
-        color: white;
-        padding: 40px 10% 20px;
-        flex-shrink: 0;
-      }
-      .footer-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: 40px;
-        margin-bottom: 30px;
-      }
-      .footer-section h4 {
-        color: #fff;
-        margin-bottom: 20px;
-        font-size: 18px;
-      }
-      .footer-section p {
-        color: #bdc3c7;
-        font-size: 14px;
-        line-height: 1.6;
-      }
-      .footer-section ul {
-        list-style: none;
-        padding: 0;
-      }
-      .footer-section ul li {
-        margin-bottom: 10px;
-      }
-      .footer-section ul li a {
-        color: #bdc3c7;
-        text-decoration: none;
-        font-size: 14px;
-        transition: 0.3s;
-      }
-      .footer-section ul li a:hover {
-        color: white;
-        padding-left: 5px;
-      }
-      .footer-bottom {
-        border-top: 1px solid #455a64;
-        padding-top: 20px;
-        text-align: center;
-        color: #bdc3c7;
-        font-size: 13px;
-      }
-
-      /* MODAL SYSTEM (Giữ nguyên) */
-      .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 9999;
-        backdrop-filter: blur(3px);
-      }
-      .modal-box {
-        background: white;
-        padding: 35px;
-        border-radius: 15px;
-        width: 400px;
-        position: relative;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-        animation: slideDown 0.4s ease;
-        text-align: center;
-      }
-      @keyframes slideDown {
-        from {
-          transform: translateY(-50px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
-      .close-btn {
-        position: absolute;
-        top: 15px;
-        right: 20px;
-        font-size: 28px;
-        color: #aaa;
-        cursor: pointer;
-      }
-      .modal-box label {
-        display: block;
-        text-align: left;
-        margin-top: 15px;
-        font-weight: bold;
-        color: #555;
-        font-size: 14px;
-      }
-      .modal-box input {
-        width: 100%;
-        padding: 12px;
-        margin-top: 6px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        box-sizing: border-box;
-      }
-      .submit-btn {
-        width: 100%;
-        padding: 14px;
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        margin-top: 25px;
-        font-weight: bold;
-        cursor: pointer;
-      }
-      .error-msg {
-        background: #fee2e2;
-        color: #dc2626;
-        padding: 10px;
-        border-radius: 6px;
-        font-size: 14px;
-        margin-bottom: 15px;
-      }
-      .switch-text {
-        margin-top: 20px;
-        font-size: 14px;
-        color: #666;
-      }
-      .switch-text span {
-        color: var(--primary-color);
-        cursor: pointer;
-        font-weight: bold;
-      }
-      .modal-overlay.active {
-        display: flex;
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Đăng nhập</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/auth.css}" href="/css/auth.css" />
   </head>
   <body>
-    <header>
-      <a href="/" class="logo">Caro Plus</a>
-      <nav>
-        <a href="/">Trang Chủ</a>
-        <a href="#">Đấu Trường Online</a>
-        <a href="#">Bảng Xếp Hạng</a>
-      </nav>
-      <div class="auth-buttons">
-        <th:block th:if="${session.user == null}">
-          <button class="btn-show-login" onclick="openModal('login')">
-            Đăng Nhập
-          </button>
-          <button class="btn-show-register" onclick="openModal('register')">
-            Đăng Ký
-          </button>
-        </th:block>
-
-        <div class="user-menu" th:unless="${session.user == null}">
-          <div class="user-name">
-            <img src="https://i.pravatar.cc/40" alt="avatar" />
-            <span th:text="${session.user.username}">Username</span>
-          </div>
-
-          <div class="dropdown-content">
-            <div class="dropdown-header">
-              <i class="fas fa-user-circle avatar-large"></i>
-              <div class="header-info">
-                <div class="full-name" th:text="${session.user.username}">
-                  Username
-                </div>
-                <div class="user-tag" th:text="'@' + ${session.user.username}">
-                  @username
-                </div>
-              </div>
+    <main class="auth-page">
+      <div
+        class="app-shell auth-hero"
+        data-auth-page
+        th:attr="data-initial-view=${openModal}"
+      >
+        <section class="glass-card hero-panel">
+          <div class="hero-copy">
+            <div>
+              <p class="eyebrow">Caro Online Platform</p>
+              <h1 class="hero-title">Bước vào phòng đấu Caro hiện đại, gọn gàng và realtime.</h1>
+              <p class="lead">
+                Kết nối bạn bè, tạo phòng riêng, chat trực tiếp trong trận và theo dõi xếp hạng ngay
+                trên một không gian thống nhất cho buổi demo.
+              </p>
             </div>
 
-            <a href="/profile"><i class="fas fa-user"></i> Xem Hồ Sơ</a>
-            <a href="/settings"><i class="fas fa-cog"></i> Cài Đặt Tài Khoản</a>
-            <a href="/edit-profile"
-              ><i class="fas fa-edit"></i> Chỉnh Sửa Hồ Sơ</a
-            >
-            <hr />
-            <a href="/friends"><i class="fas fa-users"></i> Bạn Bè</a>
-            <a href="/messages"><i class="fas fa-envelope"></i> Tin Nhắn</a>
-            <hr />
-            <a href="/logout" class="logout-link"
-              ><i class="fas fa-sign-out-alt"></i> Đăng Xuất</a
-            >
-          </div>
-        </div>
-      </div>
-    </header>
+            <div class="hero-points">
+              <article class="hero-point">
+                <div class="hero-point-mark">01</div>
+                <div>
+                  <strong>Tạo và vào phòng nhanh</strong>
+                  <p class="meta-text">Bắt đầu từ lobby, ghép trận trong vài giây và theo dõi trạng thái phòng rõ ràng.</p>
+                </div>
+              </article>
+              <article class="hero-point">
+                <div class="hero-point-mark">02</div>
+                <div>
+                  <strong>Realtime gameplay và chat</strong>
+                  <p class="meta-text">Nước đi, replay và tin nhắn đồng bộ tức thì nhờ WebSocket hiện có của dự án.</p>
+                </div>
+              </article>
+              <article class="hero-point">
+                <div class="hero-point-mark">03</div>
+                <div>
+                  <strong>Sẵn sàng cho demo nhóm</strong>
+                  <p class="meta-text">Giao diện đồng bộ toàn hệ thống giúp sản phẩm trông chắc tay và dễ trình bày hơn.</p>
+                </div>
+              </article>
+            </div>
 
-    <main class="hero">
-      <div class="hero-text">
-        <h1>Cờ Caro Online</h1>
-        <p>
-          Trải nghiệm đỉnh cao cờ Caro cùng cộng đồng game thủ Việt Nam. Thách
-          đấu ngay để khẳng định vị thế!
-        </p>
-        <button
-          class="btn-show-register"
-          style="padding: 15px 40px; font-size: 18px"
-          onclick="openModal('login')"
-        >
-          Chơi Ngay
-        </button>
-      </div>
-      <div class="hero-image">
-        <img
-          src="https://img.freepik.com/free-vector/tic-tac-toe-game-background_23-2148154625.jpg"
-          alt="Board"
-        />
+            <div class="hero-kpis">
+              <div class="hero-kpi">
+                <div class="kpi-value">20x20</div>
+                <div class="kpi-label">Bàn cờ thi đấu</div>
+              </div>
+              <div class="hero-kpi">
+                <div class="kpi-value">Realtime</div>
+                <div class="kpi-label">Gameplay + Chat</div>
+              </div>
+              <div class="hero-kpi">
+                <div class="kpi-value">ELO</div>
+                <div class="kpi-label">Theo dõi xếp hạng</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass-card auth-panel">
+          <div>
+            <p class="eyebrow">Welcome Back</p>
+            <h2 class="section-title">Đăng nhập để vào sảnh đấu</h2>
+            <p class="section-copy">
+              Dùng tài khoản hiện có để vào lobby hoặc tạo tài khoản mới nếu đây là lần đầu bạn ghé qua.
+            </p>
+          </div>
+
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab" data-auth-tab="login">Đăng nhập</button>
+            <button type="button" class="auth-tab" data-auth-tab="register">Đăng ký</button>
+          </div>
+
+          <form class="auth-form" data-auth-form="login" action="/login" method="post">
+            <div class="auth-banner error" th:if="${param.error}">
+              Sai tên đăng nhập hoặc mật khẩu. Vui lòng thử lại.
+            </div>
+            <div class="auth-banner success" th:if="${message}" th:text="${message}"></div>
+
+            <label class="field">
+              <span class="label">Tên đăng nhập</span>
+              <input class="input" type="text" name="username" placeholder="Nhập username của bạn" required />
+            </label>
+
+            <label class="field">
+              <span class="label">Mật khẩu</span>
+              <input class="input" type="password" name="password" placeholder="Nhập mật khẩu" required />
+            </label>
+
+            <div class="auth-actions">
+              <button class="btn btn-primary btn-block" type="submit">Vào sảnh đấu</button>
+            </div>
+          </form>
+
+          <form
+            id="registerForm"
+            class="auth-form"
+            data-auth-form="register"
+            action="/register"
+            method="post"
+            hidden
+          >
+            <div id="registerError" class="auth-banner error" th:if="${error}" th:text="${error}" th:attr="data-server-error=${error}" th:hidden="${error == null}"></div>
+
+            <label class="field">
+              <span class="label">Tên đăng nhập</span>
+              <input class="input" type="text" name="username" placeholder="Ví dụ: caro_master" required />
+            </label>
+
+            <label class="field">
+              <span class="label">Mật khẩu</span>
+              <input id="registerPassword" class="input" type="password" name="password" placeholder="Tạo mật khẩu" required />
+            </label>
+
+            <label class="field">
+              <span class="label">Xác nhận mật khẩu</span>
+              <input id="registerConfirm" class="input" type="password" placeholder="Nhập lại mật khẩu" required />
+            </label>
+
+            <div class="auth-actions">
+              <button class="btn btn-secondary" type="button" data-auth-tab="login">Đã có tài khoản</button>
+              <button class="btn btn-primary" type="submit">Tạo tài khoản</button>
+            </div>
+          </form>
+
+          <p class="auth-footnote">
+            Sau khi đăng nhập, bạn sẽ được chuyển thẳng vào lobby để tạo phòng, tham gia trận đấu và xem bảng xếp hạng.
+          </p>
+        </section>
       </div>
     </main>
 
-    <div
-      class="modal-overlay"
-      id="modalOverlay"
-      th:classappend="${error != null} ? 'active' : ''"
-    >
-      <div
-        class="modal-box"
-        id="loginBox"
-        th:style="${error != null} ? 'display:block' : 'display:none'"
-      >
-        <span class="close-btn" onclick="closeModal()">&times;</span>
-        <h2>Đăng Nhập</h2>
-        <div class="error-msg" th:if="${error}" th:text="${error}"></div>
-        <form action="/login" method="post">
-          <label>Tên đăng nhập</label>
-          <input
-            type="text"
-            name="username"
-            placeholder="Nhập username"
-            required
-          />
-          <label>Mật Khẩu</label>
-          <input
-            type="password"
-            name="password"
-            placeholder="Nhập mật khẩu"
-            required
-          />
-          <button type="submit" class="submit-btn">Vào Game</button>
-        </form>
-        <div class="switch-text">
-          Chưa có tài khoản?
-          <span onclick="openModal('register')">Đăng ký ngay</span>
-        </div>
-      </div>
-
-      <div class="modal-box" id="registerBox" style="display: none">
-        <span class="close-btn" onclick="closeModal()">&times;</span>
-        <h2 style="color: var(--primary-color)">Đăng Ký</h2>
-        <form
-          id="regForm"
-          action="/register"
-          method="post"
-          onsubmit="return validateRegister();"
-        >
-          <label>Tên đăng nhập</label>
-          <input
-            type="text"
-            name="username"
-            placeholder="Chọn tên đăng nhập (VI/EN)"
-            required
-          />
-          <label>Mật Khẩu</label>
-          <input
-            type="password"
-            id="regPass"
-            name="password"
-            placeholder="Tạo mật khẩu"
-            required
-          />
-          <label>Xác nhận mật khẩu</label>
-          <input
-            type="password"
-            id="regConfirm"
-            placeholder="Nhập lại mật khẩu"
-            required
-          />
-          <div
-            id="regError"
-            class="error-msg"
-            style="display: none; margin-top: 10px"
-          ></div>
-          <button type="submit" class="submit-btn">Tạo Tài Khoản</button>
-        </form>
-        <div class="switch-text">
-          Đã có tài khoản? <span onclick="openModal('login')">Đăng nhập</span>
-        </div>
-      </div>
-    </div>
-
-    <footer>
-      <div class="footer-grid">
-        <div class="footer-section">
-          <h4>Caro Plus</h4>
-          <p>
-            Nền tảng chơi cờ Caro trực tuyến hàng đầu, nơi kết nối những người
-            đam mê trí tuệ và chiến thuật.
-          </p>
-        </div>
-        <div class="footer-section">
-          <h4>Liên Kết</h4>
-          <ul>
-            <li><a href="#">Trang Chủ</a></li>
-            <li><a href="#">Đấu Trường</a></li>
-            <li><a href="#">Bảng Xếp Hạng</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Hỗ Trợ</h4>
-          <ul>
-            <li><a href="#">Hướng Dẫn</a></li>
-            <li><a href="#">Điều Khoản</a></li>
-            <li><a href="#">Liên Hệ</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Khác</h4>
-          <ul>
-            <li><a href="#">Cờ Vua</a></li>
-            <li><a href="#">Cờ Tướng</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        &copy; 2026 CaroPlus.com. Bảo lưu mọi quyền.
-      </div>
-    </footer>
-
-    <script>
-      const modalOverlay = document.getElementById("modalOverlay");
-      const loginBox = document.getElementById("loginBox");
-      const registerBox = document.getElementById("registerBox");
-
-      function openModal(type) {
-        modalOverlay.classList.add("active");
-        if (type === "login") {
-          loginBox.style.display = "block";
-          registerBox.style.display = "none";
-        } else {
-          loginBox.style.display = "none";
-          registerBox.style.display = "block";
-        }
-      }
-
-      function closeModal() {
-        modalOverlay.classList.remove("active");
-        document.getElementById("regError").style.display = "none";
-      }
-
-      function validateRegister() {
-        const pass = document.getElementById("regPass").value;
-        const confirm = document.getElementById("regConfirm").value;
-        const errorDiv = document.getElementById("regError");
-        if (pass !== confirm) {
-          errorDiv.innerText = "Mật khẩu xác nhận không khớp!";
-          errorDiv.style.display = "block";
-          return false;
-        }
-        return true;
-      }
-      window.onclick = function (e) {
-        if (e.target == modalOverlay) closeModal();
-      };
-
-      window.onload = function () {
-        // Nhận diện lệnh mở modal từ Controller gửi về
-        const modalType = "[[${openModal}]]";
-        if (modalType === "login") {
-          openModal("login");
-        } else if (modalType === "register") {
-          openModal("register");
-        }
-      };
-    </script>
+    <script src="/js/app.js"></script>
+    <script src="/js/auth.js"></script>
   </body>
 </html>

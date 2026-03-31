@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/rooms")
 public class RoomApiController {
@@ -43,6 +45,11 @@ public class RoomApiController {
     @PostMapping("/start/{roomId}")
     public Room startGame(@PathVariable Long roomId, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         return roomService.startGame(roomId, resolveCurrentUser(customUserDetails));
+    }
+
+    @GetMapping
+    public List<Room> getRooms() {
+        return roomService.getAllRooms();
     }
 
     // get room info

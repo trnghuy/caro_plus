@@ -1,268 +1,117 @@
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <head>
-    <title>Room</title>
-    <style>
-      body {
-        text-align: center;
-        font-family: Arial;
-      }
-      .container {
-        display: flex;
-        justify-content: center;
-        margin-top: 50px;
-      }
-      .player {
-        width: 200px;
-        height: 150px;
-        border: 2px solid black;
-        margin: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      button {
-        padding: 10px 20px;
-        margin-top: 20px;
-      }
-      .chat-box {
-        max-width: 700px;
-        margin: 30px auto 0;
-        text-align: left;
-      }
-      .chat-messages {
-        border: 1px solid #ccc;
-        height: 220px;
-        overflow-y: auto;
-        padding: 10px;
-        margin-bottom: 10px;
-      }
-      .chat-message {
-        margin-bottom: 10px;
-      }
-      .chat-input {
-        display: flex;
-        gap: 10px;
-      }
-      .chat-input input {
-        flex: 1;
-        padding: 8px;
-      }
-      .chat-meta {
-        font-size: 12px;
-        color: #666;
-      }
-      .system-message {
-        color: #666;
-        font-style: italic;
-      }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Room</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/room.css}" href="/css/room.css" />
   </head>
-  <body>
-    <h2>Room</h2>
-    <div id="roomData"
-         th:attr="data-room-id=${roomId},data-user-id=${user.id},data-username=${user.username}"></div>
+  <body class="room-body">
+    <div
+      class="page page--room"
+      data-room-page
+      th:attr="data-room-id=${roomId},data-user-id=${user.id},data-username=${user.username}"
+    >
+      <div class="app-shell">
+        <header class="topbar">
+          <a class="brand" href="/home">
+            <div class="brand-mark">CG</div>
+            <div>
+              <p class="brand-title">Caro Online</p>
+              <p class="brand-subtitle">Pre-match room</p>
+            </div>
+          </a>
 
-    <div class="container">
-      <div class="player" id="player1">Player 1</div>
-      <div class="player" id="player2">Waiting...</div>
-    </div>
+          <nav class="topbar-nav">
+            <a class="nav-pill" href="/home">Lobby</a>
+            <a class="nav-pill active" th:href="@{'/room?roomId=' + ${roomId}}">Room</a>
+          </nav>
 
-    <button onclick="startGame()">Chơi</button>
-    <button onclick="leaveRoom()">Rời phòng</button>
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <div class="user-avatar" th:text="${#strings.substring(user.username,0,1).toUpperCase()}">U</div>
+              <div>
+                <strong th:text="${user.username}">username</strong>
+                <div class="helper-text">Đang trong phòng</div>
+              </div>
+            </div>
+            <a class="btn btn-secondary" href="/home">Về lobby</a>
+          </div>
+        </header>
 
-    <div class="chat-box">
-      <h3>Room Chat</h3>
-      <div id="chatMessages" class="chat-messages"></div>
-      <div class="chat-input">
-        <input id="chatInput" type="text" maxlength="500" placeholder="Nhập tin nhắn..." />
-        <button onclick="sendChatMessage()">Gửi</button>
+        <section class="room-layout">
+          <div class="room-main">
+            <section class="glass-card room-header-card">
+              <div class="room-title-row">
+                <div>
+                  <p class="eyebrow">Pre-match Room</p>
+                  <h1 id="roomTitle" class="room-title">Room</h1>
+                  <p id="roomHint" class="section-copy room-hint">
+                    Chờ thêm một người chơi để host có thể bắt đầu trận.
+                  </p>
+                </div>
+                <span id="roomStatus" class="badge badge-waiting">Đang chờ</span>
+              </div>
+
+              <div class="room-meta-row">
+                <span class="chip">Host: <strong id="roomHost">--</strong></span>
+                <span class="chip">Mã hiển thị: <strong id="roomCode">--</strong></span>
+                <span class="chip">Người chơi: <strong id="roomPlayers">1 / 2</strong></span>
+              </div>
+
+              <div class="room-actions">
+                <button id="startButton" class="btn btn-primary" type="button">Bắt đầu trận</button>
+                <button id="leaveButton" class="btn btn-danger" type="button">Rời phòng</button>
+              </div>
+            </section>
+
+            <section class="player-slots">
+              <article id="player1" class="player-card"></article>
+              <article id="player2" class="player-card"></article>
+            </section>
+
+            <section class="glass-card room-tips-card">
+              <div class="room-tips">
+                <span class="chip">Host giữ ký hiệu X</span>
+                <span class="chip">Player 2 nhận ký hiệu O</span>
+                <span class="chip">Đủ 2 người là có thể bắt đầu trận</span>
+              </div>
+            </section>
+          </div>
+
+          <aside class="room-side">
+            <section class="chat-card room-chat-card">
+              <div class="page-heading">
+                <div>
+                  <p class="eyebrow">Room Chat</p>
+                  <h2 class="section-title">Chat trong phòng</h2>
+                </div>
+                <span id="chatStatus" class="chip">Đang kết nối...</span>
+              </div>
+
+              <div class="chat-shell">
+                <div id="chatMessages" class="chat-feed"></div>
+                <div class="chat-form">
+                  <input
+                    id="chatInput"
+                    class="input"
+                    type="text"
+                    maxlength="500"
+                    placeholder="Nhập tin nhắn cho phòng..."
+                  />
+                  <button id="sendChatButton" class="btn btn-primary" type="button">Gửi</button>
+                </div>
+              </div>
+            </section>
+          </aside>
+        </section>
       </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
-
-    <script>
-      const roomData = document.getElementById("roomData");
-      const roomId = roomData.dataset.roomId || new URLSearchParams(window.location.search).get("roomId");
-      const currentUserId = roomData.dataset.userId;
-      let stompClient = null;
-      const renderedMessageIds = new Set();
-
-      function connectWebSocket() {
-        const socket = new SockJS("/ws");
-        stompClient = Stomp.over(socket);
-        stompClient.debug = null;
-
-        stompClient.connect(
-          {},
-          function () {
-            stompClient.subscribe("/topic/room/" + roomId, function (response) {
-              const message = JSON.parse(response.body);
-
-              if (message.type === "JOIN" || message.type === "LEAVE") {
-                setTimeout(loadRoom, 150);
-              }
-
-              if (message.type === "START") {
-                window.location.href = "/game?roomId=" + roomId;
-              }
-            });
-
-            stompClient.subscribe("/topic/rooms/" + roomId + "/chat", function (frame) {
-              renderChatMessage(JSON.parse(frame.body));
-              const container = document.getElementById("chatMessages");
-              container.scrollTop = container.scrollHeight;
-            });
-          },
-          function (error) {
-            console.log("Lỗi kết nối WS: " + error);
-          }
-        );
-      }
-
-      async function loadRoom() {
-        const res = await fetch("/api/rooms/" + roomId + "?t=" + Date.now(), {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          console.error("Không tải được thông tin phòng");
-          return;
-        }
-
-        const room = await res.json();
-
-        document.getElementById("player1").innerText = room.host
-          ? room.host.username + " (X)"
-          : "Waiting...";
-
-        document.getElementById("player2").innerText = room.player2
-          ? room.player2.username + " (O)"
-          : "Waiting...";
-      }
-
-      async function startGame() {
-        const res = await fetch("/api/rooms/start/" + roomId, {
-          method: "POST",
-        });
-        if (!res.ok) {
-          alert("Chưa đủ người!");
-        }
-      }
-
-      async function leaveRoom() {
-        const res = await fetch("/api/rooms/leave/" + roomId, {
-          method: "POST",
-        });
-
-        if (res.ok) {
-          window.location.href = "/home";
-        } else {
-          alert("Có lỗi khi rời khỏi phòng!");
-        }
-      }
-
-      async function loadChatMessages() {
-        try {
-          const res = await fetch("/api/rooms/" + roomId + "/messages");
-          if (!res.ok) {
-            console.error("Không tải được lịch sử chat");
-            return;
-          }
-
-          const messages = await res.json();
-          const container = document.getElementById("chatMessages");
-          messages.forEach(renderChatMessage);
-          container.scrollTop = container.scrollHeight;
-        } catch (error) {
-          console.error("Lỗi tải chat:", error);
-        }
-      }
-
-      async function sendChatMessage() {
-        const input = document.getElementById("chatInput");
-        const content = input.value.trim();
-
-        if (!content) {
-          return;
-        }
-
-        try {
-          const res = await fetch("/api/rooms/" + roomId + "/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              senderId: Number(currentUserId),
-              content: content
-            })
-          });
-
-          if (!res.ok) {
-            console.error("Gửi chat thất bại");
-            return;
-          }
-
-          const message = await res.json();
-          renderChatMessage(message);
-          const container = document.getElementById("chatMessages");
-          container.scrollTop = container.scrollHeight;
-        } catch (error) {
-          console.error("Lỗi gửi chat:", error);
-          return;
-        }
-
-        input.value = "";
-      }
-
-      function renderChatMessage(message) {
-        if (!message || !message.id || renderedMessageIds.has(message.id)) {
-          return;
-        }
-
-        renderedMessageIds.add(message.id);
-        const container = document.getElementById("chatMessages");
-        const item = document.createElement("div");
-
-        if (message.type === "SYSTEM") {
-          item.className = "chat-message system-message";
-          item.textContent = "[SYSTEM] " + message.content;
-        } else {
-          item.className = "chat-message";
-          item.innerHTML =
-            "<strong>" + escapeHtml(message.senderUsername || "Unknown") + ":</strong> " +
-            escapeHtml(message.content || "") +
-            '<div class="chat-meta">' + formatTime(message.createdAt) + "</div>";
-        }
-
-        container.appendChild(item);
-      }
-
-      function escapeHtml(value) {
-        return value
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-      }
-
-      function formatTime(value) {
-        if (!value) return "";
-        return new Date(value).toLocaleString();
-      }
-
-      document.getElementById("chatInput").addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          sendChatMessage();
-        }
-      });
-
-      loadRoom();
-      loadChatMessages();
-      connectWebSocket();
-      setInterval(loadRoom, 2000);
-      setInterval(loadChatMessages, 2000);
-    </script>
+    <script src="/js/app.js"></script>
+    <script src="/js/room.js"></script>
   </body>
 </html>

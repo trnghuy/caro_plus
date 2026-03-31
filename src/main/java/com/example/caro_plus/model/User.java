@@ -1,5 +1,6 @@
 package com.example.caro_plus.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Date;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +21,7 @@ public class User {
     private String username;
 
     @NotBlank(message = "password is required")
+    @JsonIgnore
     private String password;
 
     private Date createdAt;

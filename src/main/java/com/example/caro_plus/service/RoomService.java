@@ -15,6 +15,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class RoomService {
@@ -179,6 +180,10 @@ public class RoomService {
 
     public Room getRoomById(Long roomId) {
         return roomRepository.findById(roomId).orElse(null);
+    }
+
+    public List<Room> getAllRooms() {
+        return roomRepository.findAllByOrderByCreatedAtDesc();
     }
 
     private void sendRoomEventAfterCommit(Long roomId, GameMessage message) {

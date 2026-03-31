@@ -1,73 +1,163 @@
 <!doctype html>
-<html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
   <head>
-    <title>Caro Lobby</title>
-    <style>
-      body {
-        font-family: Arial;
-        text-align: center;
-        margin-top: 100px;
-      }
-      button {
-        padding: 10px 20px;
-        margin: 10px;
-        font-size: 16px;
-      }
-      #joinPopup {
-        display: none;
-        position: fixed;
-        top: 40%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        border: 1px solid #ccc;
-        padding: 20px;
-      }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Lobby</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/home.css}" href="/css/home.css" />
   </head>
   <body>
-    <h1>Caro Game</h1>
+    <div class="page" data-home-page th:attr="data-username=${user.username}">
+      <div class="app-shell">
+        <header class="topbar">
+          <a class="brand" href="/home">
+            <div class="brand-mark">CG</div>
+            <div>
+              <p class="brand-title">Caro Online</p>
+              <p class="brand-subtitle">Lobby · Room · Game · Rank</p>
+            </div>
+          </a>
 
-    <button onclick="createRoom()">Tạo phòng</button>
-    <button onclick="showJoin()">Join phòng</button>
+          <nav class="topbar-nav">
+            <a class="nav-pill active" href="/home">Lobby</a>
+            <a class="nav-pill" href="#rooms">Phòng đấu</a>
+            <a class="nav-pill" href="#ranking">Xếp hạng</a>
+          </nav>
 
-    <div id="joinPopup">
-      <h3>Nhập mã phòng</h3>
-      <input id="roomInput" placeholder="Room ID" />
-      <br /><br />
-      <button onclick="joinRoom()">Join</button>
-      <button onclick="hideJoin()">Cancel</button>
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <div class="user-avatar" th:text="${#strings.substring(user.username,0,1).toUpperCase()}">U</div>
+              <div>
+                <strong th:text="${user.username}">username</strong>
+                <div class="helper-text">Sẵn sàng thi đấu</div>
+              </div>
+            </div>
+            <a class="btn btn-secondary" href="/logout">Đăng xuất</a>
+          </div>
+        </header>
+
+        <section class="lobby-grid">
+          <div class="lobby-column lobby-column--main">
+            <section class="glass-card lobby-summary">
+              <div class="summary-row">
+                <div>
+                  <p class="eyebrow">Lobby Dashboard</p>
+                  <h1 class="summary-title">Xin chào <span th:text="${user.username}">game thủ</span></h1>
+                  <p class="summary-copy">Xem nhanh chỉ số hiện tại rồi xuống ngay danh sách phòng đang mở để vào trận.</p>
+                </div>
+                <span class="badge badge-online">Online</span>
+              </div>
+
+              <div class="summary-stats">
+                <article class="summary-stat">
+                  <div class="kpi">
+                    <span class="kpi-value" th:text="${user.rating}">1000</span>
+                    <span class="kpi-label">ELO</span>
+                  </div>
+                </article>
+                <article class="summary-stat">
+                  <div class="kpi">
+                    <span class="kpi-value" th:text="${user.win}">0</span>
+                    <span class="kpi-label">Thắng</span>
+                  </div>
+                </article>
+                <article class="summary-stat">
+                  <div class="kpi">
+                    <span class="kpi-value" th:text="${user.lose}">0</span>
+                    <span class="kpi-label">Thua</span>
+                  </div>
+                </article>
+                <article class="summary-stat">
+                  <div class="kpi">
+                    <span class="kpi-value" th:text="${user.draw}">0</span>
+                    <span class="kpi-label">Hòa</span>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section id="rooms" class="glass-card rooms-card">
+              <div class="room-list-head">
+                <div>
+                  <p class="eyebrow">Open Rooms</p>
+                  <h2 class="section-title">Phòng đang mở</h2>
+                </div>
+                <button class="btn btn-secondary" type="button" onclick="location.reload()">Làm mới</button>
+              </div>
+              <div id="roomList" class="room-list">
+                <div class="empty-state">Đang tải danh sách phòng...</div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="lobby-column lobby-column--side">
+            <section class="glass-card quick-actions">
+              <div class="quick-actions-head">
+                <div>
+                  <p class="eyebrow">Quick Actions</p>
+                  <h2 class="section-title">Vào trận thật nhanh</h2>
+                </div>
+              </div>
+
+              <div class="quick-action-list">
+                <article class="quick-action">
+                  <div class="quick-action-text">
+                    <h3>Tạo phòng</h3>
+                    <span class="helper-text">Host ngay</span>
+                  </div>
+                  <button class="btn btn-primary" type="button" data-create-room>Tạo phòng mới</button>
+                </article>
+
+                <article class="quick-action">
+                  <div class="quick-action-text">
+                    <h3>Nhập mã phòng</h3>
+                    <span class="helper-text">Join nhanh</span>
+                  </div>
+                  <button class="btn btn-secondary" type="button" data-open-join>Tham gia nhanh</button>
+                </article>
+              </div>
+            </section>
+
+            <section id="ranking" class="rank-card">
+              <div class="rank-head">
+                <div>
+                  <p class="eyebrow">Leaderboard</p>
+                  <h2 class="section-title">Top xếp hạng</h2>
+                </div>
+                <span class="chip">Top người chơi</span>
+              </div>
+              <p class="rank-note">Bảng xếp hạng được giữ trong một panel riêng để bạn vừa theo dõi rank vừa xem phòng đấu.</p>
+              <div id="rankList" class="rank-list">
+                <div class="empty-state">Đang tải bảng xếp hạng...</div>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </div>
     </div>
 
-    <script>
-      function showJoin() {
-        document.getElementById("joinPopup").style.display = "block";
-      }
+    <div class="modal-overlay" id="joinModal">
+      <div class="modal-card">
+        <h3 class="modal-title">Tham gia bằng mã phòng</h3>
+        <p class="modal-copy">
+          Nhập room id mà bạn nhận được từ host để nhảy thẳng vào phòng chờ trước trận.
+        </p>
+        <div class="modal-form">
+          <label class="field">
+            <span class="label">Room ID</span>
+            <input id="roomInput" class="input" type="text" placeholder="Ví dụ: 12" />
+          </label>
+          <div id="joinError" class="helper-text" style="color: #fecdd3"></div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close-join>Đóng</button>
+          <button type="button" class="btn btn-primary" data-submit-join>Vào phòng</button>
+        </div>
+      </div>
+    </div>
 
-      function hideJoin() {
-        document.getElementById("joinPopup").style.display = "none";
-      }
-
-      async function createRoom() {
-        const res = await fetch("/api/rooms/create", { method: "POST" });
-        const room = await res.json();
-
-        window.location.href = "/room?roomId=" + room.id;
-      }
-
-      async function joinRoom() {
-        const roomId = document.getElementById("roomInput").value;
-
-        const res = await fetch("/api/rooms/join/" + roomId, {
-          method: "POST",
-        });
-
-        if (res.ok) {
-          window.location.href = "/room?roomId=" + roomId;
-        } else {
-          alert("Không join được!");
-        }
-      }
-    </script>
+    <script src="/js/app.js"></script>
+    <script src="/js/home.js"></script>
   </body>
 </html>
