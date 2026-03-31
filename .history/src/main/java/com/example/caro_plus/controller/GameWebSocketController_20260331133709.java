@@ -29,7 +29,7 @@ public class GameWebSocketController {
         if (!current.equals(message.getPlayer())) {
             return;
         }
-        //Turf off
+        //
         gameState.switchTurn(message.getRoomId());
 
         messagingTemplate.convertAndSend(

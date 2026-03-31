@@ -3,7 +3,7 @@
     "activeCommit": 0,
     "commits": [
         {
-            "activePatchIndex": 1,
+            "activePatchIndex": 3,
             "patches": [
                 {
                     "date": 1774937728190,
@@ -12,6 +12,14 @@
                 {
                     "date": 1774938476086,
                     "content": "Index: \n===================================================================\n--- \n+++ \n@@ -25,14 +25,12 @@\n     public void sendMove(MoveMessage message) {\r\n \r\n         String current = gameState.getTurn(message.getRoomId());\r\n \r\n-        // ❌ sai lượt → ignore\r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n \r\n-        // đổi lượt\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
+                },
+                {
+                    "date": 1774939029103,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -28,9 +28,9 @@\n \r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n-\r\n+        //\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
+                },
+                {
+                    "date": 1774939051406,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -28,9 +28,9 @@\n \r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n-        //\r\n+        //Turf off\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
                 }
             ],
             "date": 1774937728190,
