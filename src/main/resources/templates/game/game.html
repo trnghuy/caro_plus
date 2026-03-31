@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
   <head>
     <title>Caro Game</title>
     <style>
@@ -23,26 +23,34 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        user-select: none;
       }
     </style>
   </head>
   <body>
     <h2>Game</h2>
     <div id="turn">Turn: X</div>
-
+    <div id="status"></div>
     <div id="board"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
 
-    <script>
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomId = urlParams.get("roomId");
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      const roomId = /*[[${roomId}]]*/ 0;
+      const currentUsername = /*[[${user.username}]]*/ "guest";
+      const playerSymbol = /*[[${playerSymbol}]]*/ "";
+      const initialTurn = /*[[${currentTurn}]]*/ "X";
+      /*]]>*/
+    </script>
 
+    <script>
       let board = Array(20)
         .fill(null)
         .map(() => Array(20).fill(null));
-      let currentPlayer = "X";
+      let currentPlayer = initialTurn;
+      let winner = null;
       let stompClient = null;
 
       function connectWS() {
@@ -53,26 +61,39 @@
           stompClient.subscribe("/topic/game/" + roomId, function (msg) {
             const data = JSON.parse(msg.body);
 
+            if (data.x == null || data.y == null || !data.player) {
+              return;
+            }
+
             board[data.x][data.y] = data.player;
-            currentPlayer = data.player === "X" ? "O" : "X";
+            currentPlayer = data.currentTurn || currentPlayer;
+            winner = data.winner || winner;
 
             updateTurn();
             renderBoard();
+
+            if (data.type === "WIN" && data.winner) {
+              document.getElementById("status").innerText =
+                data.winner + " wins the game!";
+            }
           });
         });
       }
 
       function sendMove(x, y) {
+        if (!stompClient || !stompClient.connected) return;
+        if (winner) return;
+        if (playerSymbol !== currentPlayer) return;
         if (board[x][y]) return;
 
         stompClient.send(
-          "/app/move",
+          "/app/game.move/" + roomId,
           {},
           JSON.stringify({
-            roomId: roomId,
+            roomId: String(roomId),
             x: x,
             y: y,
-            player: currentPlayer,
+            sender: currentUsername,
           }),
         );
       }
@@ -93,10 +114,19 @@
       }
 
       function updateTurn() {
-        document.getElementById("turn").innerText = "Turn: " + currentPlayer;
+        const turnText = winner
+          ? "Winner: " + winner
+          : "Turn: " + currentPlayer;
+        document.getElementById("turn").innerText = turnText;
+        document.getElementById("status").innerText = winner
+          ? "Your symbol: " + playerSymbol
+          : "Your symbol: " +
+            playerSymbol +
+            (playerSymbol === currentPlayer ? " | Your turn" : " | Opponent's turn");
       }
 
       connectWS();
+      updateTurn();
       renderBoard();
     </script>
   </body>

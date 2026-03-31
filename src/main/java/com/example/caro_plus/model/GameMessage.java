@@ -5,9 +5,12 @@ import lombok.Data;
 @Data
 public class GameMessage {
     private String type;    // JOIN, LEAVE, MOVE, START
-    private String content; // Nội dung tin nhắn
-    private String sender;  // Username người gửi
-    private String roomId;  // ID phòng
-    private Integer x;      // Tọa độ X (nếu là nước đi)
-    private Integer y;      // Tọa độ Y (nếu là nước đi)
+    private String content; // Message content
+    private String sender;  // Username nguoi gui
+    private String player;  // X or O for MOVE
+    private String roomId;  // Room id
+    private String currentTurn;
+    private String winner;
+    private Integer x;      // Move row
+    private Integer y;      // Move column
 }
