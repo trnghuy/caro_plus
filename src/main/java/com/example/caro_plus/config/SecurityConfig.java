@@ -10,44 +10,34 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
-        @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-                http
-                                .csrf(csrf -> csrf.disable())
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers("/", "/register", "/css/**", "/js/**").permitAll() // Thêm
-                                                                                                                    // thư
-                                                                                                                    // mục
-                                                                                                                    // tĩnh
-                                                                                                                    // nếu
-                                                                                                                    // có
-                                                .anyRequest().authenticated())
-                                .formLogin(form -> form
-                                                .loginPage("/") // Trang chứa form đăng nhập
-                                                .loginProcessingUrl("/login") // BẮT BUỘC: Đường dẫn mà thẻ <form
-                                                                              // action="..."> trong HTML gọi tới
-                                                .defaultSuccessUrl("/home", true) // Thành công thì vào /home
-                                                .failureUrl("/?error=true") // Thất bại thì quay lại trang chủ kèm tham
-                                                                            // số error
-                                                .permitAll())
-                                .rememberMe(remember -> remember
-                                                .key("caro_plus_secret_key") // Chuỗi bí mật để mã hóa cookie
-                                                .tokenValiditySeconds(7 * 24 * 60 * 60) // 7 ngày
-                                                .rememberMeParameter("remember") // BẮT BUỘC: trùng với thuộc tính
-                                                                                 // name="remember" của thẻ input
-                                                                                 // checkbox trong HTML
-                                )
-                                .logout(logout -> logout
-                                                .logoutUrl("/logout") // Đường dẫn gọi khi muốn đăng xuất
-                                                .logoutSuccessUrl("/") // Đăng xuất xong về trang chủ
-                                                .deleteCookies("JSESSIONID", "remember-me")
-                                                .permitAll());
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/register", "/css/**", "/js/**").permitAll()
+                        .anyRequest().authenticated())
+                .formLogin(form -> form
+                        .loginPage("/")
+                        .loginProcessingUrl("/login")
+                        .defaultSuccessUrl("/home", true)
+                        .failureUrl("/?error=true")
+                        .permitAll())
+                .rememberMe(remember -> remember
+                        .key("caro_plus_secret_key")
+                        .tokenValiditySeconds(7 * 24 * 60 * 60)
+                        .rememberMeParameter("remember"))
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/")
+                        .deleteCookies("JSESSIONID", "remember-me")
+                        .permitAll());
 
-                return http.build();
-        }
+        return http.build();
+    }
 
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
-        }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 }
