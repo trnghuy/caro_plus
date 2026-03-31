@@ -28,7 +28,7 @@ public class Game {
 
     @ManyToOne
     @JoinColumn(name = "winner_id")
-    private User player;
+    private User winner;
 
     private String status;
 }

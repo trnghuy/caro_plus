@@ -1,12 +1,19 @@
 package com.example.caro_plus.service;
 
+import com.example.caro_plus.config.GameState;
+import com.example.caro_plus.model.GameMessage;
 import com.example.caro_plus.model.Room;
 import com.example.caro_plus.model.RoomPlayer;
 import com.example.caro_plus.model.User;
 import com.example.caro_plus.repository.RoomPlayerRepository;
 import com.example.caro_plus.repository.RoomRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import java.util.Date;
 
 @Service
@@ -17,6 +24,15 @@ public class RoomService {
 
     @Autowired
     private RoomRepository roomRepository;
+
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+
+    @Autowired
+    private GameState gameState;
+
+    @Autowired
+    private GameService gameService;
 
     // tạo phòng
     public Room createRoom(User user) {
@@ -47,42 +63,61 @@ public class RoomService {
     }
 
     // join phòng
+    @Transactional // Rất quan trọng để dữ liệu đồng bộ ngay
     public Room joinRoom(Long roomId, User user) {
-
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
-        // ❌ đã trong room
+        // 1. Nếu user đã là Host thì không cần join nữa
+        if (room.getHost().getId().equals(user.getId())) {
+            return room;
+        }
+
+        // 2. Kiểm tra nếu user đã có trong bảng RoomPlayer (đã join rồi)
         if (roomPlayerRepository.findByRoomAndPlayer(room, user).isPresent()) {
             return room;
         }
 
-        // ❌ full rồi
-        if (roomPlayerRepository.countByRoom(room) == 2) {
-            return null;
+        // 3. Kiểm tra xem phòng đã đủ 2 người chưa (dựa trên cột player2 của bảng Room)
+        if (room.getPlayer2() != null) {
+            throw new RuntimeException("Phòng đã đầy!");
         }
 
-        // thêm player
+        // --- BẮT ĐẦU CẬP NHẬT ---
+
+        // A. Cập nhật trực tiếp vào bảng Room (Để hiển thị nhanh)
+        room.setPlayer2(user);
+        room.setStatus("full");
+
+        // B. Lưu vào bảng trung gian RoomPlayer (Để quản lý Symbol 'O')
         RoomPlayer rp = new RoomPlayer();
         rp.setRoom(room);
         rp.setPlayer(user);
         rp.setSymbol('O');
-
         roomPlayerRepository.save(rp);
 
-        // đủ 2 người → full
-        if (roomPlayerRepository.countByRoom(room) == 2) {
-            room.setStatus("full");
-        }
+        // C. Lưu lại bảng Room
+        Room savedRoom = roomRepository.save(room);
 
-        return roomRepository.save(room);
+        // Gửi thông báo qua WebSocket
+        GameMessage msg = new GameMessage();
+        msg.setType("JOIN");
+        msg.setSender(user.getUsername());
+        msg.setRoomId(roomId.toString());
+        sendRoomEventAfterCommit(roomId, msg);
+
+        return savedRoom;
     }
 
     // rời phòng
+    @Transactional
     public Room leaveRoom(Long roomId, User user) {
 
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
+
+        boolean wasPlaying = "playing".equals(room.getStatus()) || gameState.hasRoom(roomId);
+        boolean isHostLeaving = room.getHost() != null && room.getHost().getId().equals(user.getId());
 
         roomPlayerRepository.findByRoomAndPlayer(room, user)
                 .ifPresent(roomPlayerRepository::delete);
@@ -90,15 +125,45 @@ public class RoomService {
         int count = roomPlayerRepository.countByRoom(room);
 
         if (count == 0) {
+            gameState.removeRoom(roomId);
             roomRepository.delete(room);
             return null;
-        } else {
-            room.setStatus("waiting");
-            return roomRepository.save(room);
         }
+        if (isHostLeaving) {
+            User newHost = room.getPlayer2();
+            room.setHost(newHost);
+            room.setPlayer2(null);
+
+            roomPlayerRepository.findByRoomAndPlayer(room, newHost)
+                    .ifPresent(roomPlayer -> roomPlayer.setSymbol('X'));
+        } else if (room.getPlayer2() != null && room.getPlayer2().getId().equals(user.getId())) {
+            room.setPlayer2(null);
+        }
+
+        room.setStatus("waiting");
+        gameState.removeRoom(roomId);
+        Room savedRoom = roomRepository.save(room);
+
+            // Gửi thông báo qua WebSocket
+        GameMessage roomMessage = new GameMessage();
+        roomMessage.setType("LEAVE");
+        roomMessage.setSender(user.getUsername());
+        roomMessage.setRoomId(roomId.toString());
+        sendRoomEventAfterCommit(roomId, roomMessage);
+
+        if (wasPlaying) {
+            GameMessage gameMessage = new GameMessage();
+            gameMessage.setType("PLAYER_LEFT");
+            gameMessage.setSender(user.getUsername());
+            gameMessage.setRoomId(roomId.toString());
+            sendGameEventAfterCommit(roomId, gameMessage);
+        }
+
+        return savedRoom;
     }
 
     // start game
+    @Transactional
     public Room startGame(Long roomId, User user) {
 
         Room room = roomRepository.findById(roomId)
@@ -110,9 +175,25 @@ public class RoomService {
         }
 
         // ❗ check đủ 2 người
-        if (roomPlayerRepository.countByRoom(room) == 2) {
-            room.setStatus("playing");
-            return roomRepository.save(room);
+        if (room.getPlayer2() == null || roomPlayerRepository.countByRoom(room) != 2) {
+            throw new RuntimeException("Chua du nguoi de bat dau!");
+        }
+
+        room.setStatus("playing");
+        Room savedRoom = roomRepository.save(room);
+        gameState.initializeRoom(roomId, room.getHost().getUsername(), room.getPlayer2().getUsername());
+        gameService.createGame(savedRoom);
+
+            // Gửi thông báo qua WebSocket
+            GameMessage msg = new GameMessage();
+        msg.setType("START");
+        msg.setSender(user.getUsername());
+        msg.setRoomId(roomId.toString());
+        msg.setCurrentTurn(gameState.getTurn(roomId));
+        sendRoomEventAfterCommit(roomId, msg);
+
+        if (savedRoom != null) {
+            return savedRoom;
         }
 
         throw new RuntimeException("Chưa đủ người để bắt đầu!");
@@ -120,5 +201,33 @@ public class RoomService {
 
     public Room getRoomById(Long roomId) {
         return roomRepository.findById(roomId).orElse(null);
+    }
+
+    private void sendRoomEventAfterCommit(Long roomId, GameMessage message) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    simpMessagingTemplate.convertAndSend("/topic/room/" + roomId, message);
+                }
+            });
+            return;
+        }
+
+        simpMessagingTemplate.convertAndSend("/topic/room/" + roomId, message);
+    }
+
+    private void sendGameEventAfterCommit(Long roomId, GameMessage message) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, message);
+                }
+            });
+            return;
+        }
+
+        simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, message);
     }
 }
