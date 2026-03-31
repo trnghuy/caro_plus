@@ -1,0 +1,18 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/service/GameService.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 0,
+            "patches": [
+                {
+                    "date": 1774937392010,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                }
+            ],
+            "date": 1774937392010,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.service;\r\n\r\nimport com.example.caro_plus.model.User;\r\nimport com.example.caro_plus.repository.UserRepository;\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.stereotype.Service;\r\n\r\n@Service\r\npublic class GameService {\r\n\r\n    @Autowired\r\n    private UserRepository userRepository;\r\n\r\n    // tính ELO\r\n    public int calculateElo(int playerRating, int opponentRating, double score) {\r\n        int K = 32;\r\n\r\n        double expected = 1.0 / (1 + Math.pow(10, (opponentRating - playerRating) / 400.0));\r\n\r\n        return (int) (playerRating + K * (score - expected));\r\n    }\r\n\r\n    // update rank\r\n    public void updateRank(User playerX, User playerO, User winner) {\r\n\r\n        double scoreX, scoreO;\r\n\r\n        if (winner == null) {\r\n            scoreX = 0.5;\r\n            scoreO = 0.5;\r\n            playerX.setDraw(playerX.getDraw() + 1);\r\n            playerO.setDraw(playerO.getDraw() + 1);\r\n        } else if (winner.getId().equals(playerX.getId())) {\r\n            scoreX = 1;\r\n            scoreO = 0;\r\n            playerX.setWin(playerX.getWin() + 1);\r\n            playerO.setLose(playerO.getLose() + 1);\r\n        } else {\r\n            scoreX = 0;\r\n            scoreO = 1;\r\n            playerO.setWin(playerO.getWin() + 1);\r\n            playerX.setLose(playerX.getLose() + 1);\r\n        }\r\n\r\n        int newX = calculateElo(playerX.getRating(), playerO.getRating(), scoreX);\r\n        int newO = calculateElo(playerO.getRating(), playerX.getRating(), scoreO);\r\n\r\n        playerX.setRating(newX);\r\n        playerO.setRating(newO);\r\n\r\n        userRepository.save(playerX);\r\n        userRepository.save(playerO);\r\n    }\r\n}"
+        }
+    ]
+}

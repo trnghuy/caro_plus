@@ -2,7 +2,7 @@ package com.example.caro_plus.model;
 
 import java.util.Date;
 import jakarta.persistence.*;
-// import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Setter
@@ -10,21 +10,17 @@ import lombok.*;
 @RequiredArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "room")
-public class Room {
+@Table(name = "user")
+public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "host_id")
-    private User host;
+    @NotBlank(message = "username is required")
+    private String username;
 
-    @ManyToOne
-    @JoinColumn(name = "player2_id")
-    private User player2;
-
-    private String status;
+    @NotBlank(message = "password is required")
+    private String password;
     
     private Date createdAt;
 }

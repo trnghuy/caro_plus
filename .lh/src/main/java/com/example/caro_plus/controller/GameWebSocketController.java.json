@@ -1,0 +1,30 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/controller/GameWebSocketController.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 3,
+            "patches": [
+                {
+                    "date": 1774937728190,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1774938476086,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -25,14 +25,12 @@\n     public void sendMove(MoveMessage message) {\r\n \r\n         String current = gameState.getTurn(message.getRoomId());\r\n \r\n-        // ❌ sai lượt → ignore\r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n \r\n-        // đổi lượt\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
+                },
+                {
+                    "date": 1774939029103,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -28,9 +28,9 @@\n \r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n-\r\n+        //\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
+                },
+                {
+                    "date": 1774939051406,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -28,9 +28,9 @@\n \r\n         if (!current.equals(message.getPlayer())) {\r\n             return;\r\n         }\r\n-        //\r\n+        //Turf off\r\n         gameState.switchTurn(message.getRoomId());\r\n \r\n         messagingTemplate.convertAndSend(\r\n                 \"/topic/game/\" + message.getRoomId(),\r\n"
+                }
+            ],
+            "date": 1774937728190,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.controller;\r\n\r\nimport com.example.caro_plus.config.GameState;\r\nimport com.example.caro_plus.dto.MoveMessage;\r\nimport com.example.caro_plus.service.GameService;\r\n\r\nimport org.springframework.beans.factory.annotation.Autowired;\r\nimport org.springframework.messaging.handler.annotation.MessageMapping;\r\nimport org.springframework.messaging.simp.SimpMessagingTemplate;\r\nimport org.springframework.stereotype.Controller;\r\n\r\n@Controller\r\npublic class GameWebSocketController {\r\n\r\n    @Autowired\r\n    private SimpMessagingTemplate messagingTemplate;\r\n\r\n    @Autowired\r\n    private GameState gameState;\r\n\r\n    @Autowired\r\n    private GameService gameService;\r\n\r\n    @MessageMapping(\"/move\")\r\n    public void sendMove(MoveMessage message) {\r\n\r\n        String current = gameState.getTurn(message.getRoomId());\r\n\r\n        // ❌ sai lượt → ignore\r\n        if (!current.equals(message.getPlayer())) {\r\n            return;\r\n        }\r\n\r\n        // đổi lượt\r\n        gameState.switchTurn(message.getRoomId());\r\n\r\n        messagingTemplate.convertAndSend(\r\n                \"/topic/game/\" + message.getRoomId(),\r\n                message);\r\n    }\r\n}\r\n"
+        }
+    ]
+}

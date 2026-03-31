@@ -1,0 +1,26 @@
+{
+    "sourceFile": "src/main/java/com/example/caro_plus/controller/RankController.java",
+    "activeCommit": 0,
+    "commits": [
+        {
+            "activePatchIndex": 2,
+            "patches": [
+                {
+                    "date": 1774926646998,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n"
+                },
+                {
+                    "date": 1774936563640,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -0,0 +1,24 @@\n+package com.example.caro_plus.controller;\r\n+\r\n+import com.example.caro_plus.model.User;\r\n+import com.example.caro_plus.service.UserService;\r\n+import org.springframework.beans.factory.annotation.Autowired;\r\n+import org.springframework.stereotype.Controller;\r\n+import org.springframework.ui.Model;\r\n+import org.springframework.web.bind.annotation.GetMapping;\r\n+\r\n+import java.util.List;\r\n+\r\n+@Controller\r\n+public class RankController {\r\n+\r\n+    @Autowired\r\n+    private UserService userService;\r\n+\r\n+    @GetMapping(\"/rank\")\r\n+    public String showRankingPage(Model model) {\r\n+        List<User> topPlayers = userService.getTopPlayers();\r\n+        model.addAttribute(\"topPlayers\", topPlayers);\r\n+        return \"rank/index\"; // Trả về file rank/index.html (hoặc rank.html tùy bạn đặt)\r\n+    }\r\n+}\n\\ No newline at end of file\n"
+                },
+                {
+                    "date": 1774937692828,
+                    "content": "Index: \n===================================================================\n--- \n+++ \n@@ -1,24 +1,21 @@\n package com.example.caro_plus.controller;\r\n \r\n import com.example.caro_plus.model.User;\r\n-import com.example.caro_plus.service.UserService;\r\n+import com.example.caro_plus.repository.UserRepository;\r\n import org.springframework.beans.factory.annotation.Autowired;\r\n-import org.springframework.stereotype.Controller;\r\n-import org.springframework.ui.Model;\r\n-import org.springframework.web.bind.annotation.GetMapping;\r\n+import org.springframework.web.bind.annotation.*;\r\n \r\n import java.util.List;\r\n \r\n-@Controller\r\n+@RestController\r\n+@RequestMapping(\"/api/rank\")\r\n public class RankController {\r\n \r\n     @Autowired\r\n-    private UserService userService;\r\n+    private UserRepository userRepository;\r\n \r\n-    @GetMapping(\"/rank\")\r\n-    public String showRankingPage(Model model) {\r\n-        List<User> topPlayers = userService.getTopPlayers();\r\n-        model.addAttribute(\"topPlayers\", topPlayers);\r\n-        return \"rank/index\"; // Trả về file rank/index.html (hoặc rank.html tùy bạn đặt)\r\n+    @GetMapping\r\n+    public List<User> getRank() {\r\n+        return userRepository.findTopPlayers();\r\n     }\r\n }\n\\ No newline at end of file\n"
+                }
+            ],
+            "date": 1774926646998,
+            "name": "Commit-0",
+            "content": "package com.example.caro_plus.controller;\r\n\r\npublic class RankController {\r\n    \r\n}\r\n"
+        }
+    ]
+}
