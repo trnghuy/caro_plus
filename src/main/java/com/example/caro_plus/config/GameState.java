@@ -1,5 +1,6 @@
 package com.example.caro_plus.config;
 
+import com.example.caro_plus.dto.GameSnapshotResponse;
 import com.example.caro_plus.model.GameMessage;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +38,90 @@ public class GameState {
         return resolvePlayerSymbol(session, username);
     }
 
+    public synchronized boolean reconnectPlayer(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null) {
+            return false;
+        }
+
+        if (username.equals(session.playerX)) {
+            boolean wasDisconnected = !session.playerXConnected;
+            session.playerXConnected = true;
+            return wasDisconnected;
+        }
+
+        if (username.equals(session.playerO)) {
+            boolean wasDisconnected = !session.playerOConnected;
+            session.playerOConnected = true;
+            return wasDisconnected;
+        }
+
+        return false;
+    }
+
+    public synchronized boolean disconnectPlayer(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null) {
+            return false;
+        }
+
+        if (username.equals(session.playerX)) {
+            boolean wasConnected = session.playerXConnected;
+            session.playerXConnected = false;
+            return wasConnected;
+        }
+
+        if (username.equals(session.playerO)) {
+            boolean wasConnected = session.playerOConnected;
+            session.playerOConnected = false;
+            return wasConnected;
+        }
+
+        return false;
+    }
+
+    public synchronized boolean isOpponentConnected(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null) {
+            return true;
+        }
+
+        if (username.equals(session.playerX)) {
+            return session.playerOConnected;
+        }
+
+        if (username.equals(session.playerO)) {
+            return session.playerXConnected;
+        }
+
+        return true;
+    }
+
+    public synchronized boolean areAllPlayersDisconnected(Long roomId) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null) {
+            return false;
+        }
+
+        return !session.playerXConnected && !session.playerOConnected;
+    }
+
+    public synchronized GameSnapshotResponse getSnapshot(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null || resolvePlayerSymbol(session, username) == null) {
+            return null;
+        }
+
+        GameSnapshotResponse response = new GameSnapshotResponse();
+        response.setBoard(copyBoard(session.board));
+        response.setCurrentTurn(session.currentTurn);
+        response.setWinner(session.winner);
+        response.setLastMoveX(session.lastMoveX);
+        response.setLastMoveY(session.lastMoveY);
+        response.setOpponentConnected(isOpponentConnected(roomId, username));
+        return response;
+    }
+
     public synchronized GameMessage makeMove(Long roomId, String username, Integer x, Integer y) {
         RoomSession session = sessions.get(roomId);
         if (session == null || x == null || y == null) {
@@ -47,12 +132,18 @@ public class GameState {
             return null;
         }
 
+        if (!session.playerXConnected || !session.playerOConnected) {
+            return null;
+        }
+
         String symbol = resolvePlayerSymbol(session, username);
         if (symbol == null || !symbol.equals(session.currentTurn) || session.board[x][y] != null) {
             return null;
         }
 
         session.board[x][y] = symbol;
+        session.lastMoveX = x;
+        session.lastMoveY = y;
 
         GameMessage response = new GameMessage();
         response.setRoomId(roomId.toString());
@@ -78,12 +169,16 @@ public class GameState {
 
     public synchronized GameMessage requestReplay(Long roomId, String username) {
         RoomSession session = sessions.get(roomId);
-        if (session == null || session.winner == null) {
+        if (session == null) {
             return null;
         }
 
         String symbol = resolvePlayerSymbol(session, username);
         if (symbol == null || session.replayRequester != null) {
+            return null;
+        }
+
+        if (!session.playerXConnected || !session.playerOConnected) {
             return null;
         }
 
@@ -187,6 +282,16 @@ public class GameState {
         session.currentTurn = "X";
         session.winner = null;
         session.replayRequester = null;
+        session.lastMoveX = null;
+        session.lastMoveY = null;
+    }
+
+    private String[][] copyBoard(String[][] source) {
+        String[][] snapshot = new String[BOARD_SIZE][BOARD_SIZE];
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            System.arraycopy(source[i], 0, snapshot[i], 0, BOARD_SIZE);
+        }
+        return snapshot;
     }
 
     private static class RoomSession {
@@ -196,6 +301,10 @@ public class GameState {
         private String currentTurn = "X";
         private String winner;
         private String replayRequester;
+        private boolean playerXConnected = true;
+        private boolean playerOConnected = true;
+        private Integer lastMoveX;
+        private Integer lastMoveY;
 
         private RoomSession(String playerX, String playerO) {
             this.playerX = playerX;

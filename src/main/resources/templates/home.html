@@ -52,8 +52,17 @@
               <div class="summary-stats">
                 <article class="summary-stat">
                   <div class="kpi">
-                    <span class="kpi-value" th:text="${user.rating}">1000</span>
-                    <span class="kpi-label">ELO</span>
+                    <span class="kpi-value kpi-value--star">
+                      <span class="star-points" aria-hidden="true">★</span>
+                      <span th:text="${user.supportPoints}">5.0</span>
+                    </span>
+                    <span class="kpi-label sr-only">Điểm trợ giúp</span>
+                  </div>
+                </article>
+                <article class="summary-stat">
+                  <div class="kpi">
+                    <span class="kpi-value" th:text="${user.rankScore}">0</span>
+                    <span class="kpi-label">Điểm</span>
                   </div>
                 </article>
                 <article class="summary-stat">
@@ -123,11 +132,11 @@
               <div class="rank-head">
                 <div>
                   <p class="eyebrow">Leaderboard</p>
-                  <h2 class="section-title">Top xếp hạng</h2>
+                  <h2 class="section-title">Top điểm hạng</h2>
                 </div>
                 <span class="chip">Top người chơi</span>
               </div>
-              <p class="rank-note">Bảng xếp hạng được giữ trong một panel riêng để bạn vừa theo dõi rank vừa xem phòng đấu.</p>
+              <p class="rank-note">Điểm hạng dùng để xếp bảng, còn điểm trợ giúp được giữ riêng để mở các quyền hỗ trợ trong trận.</p>
               <div id="rankList" class="rank-list">
                 <div class="empty-state">Đang tải bảng xếp hạng...</div>
               </div>

@@ -33,6 +33,16 @@
     return date.toLocaleString("vi-VN");
   }
 
+  function formatPoints(value) {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) {
+      return "0";
+    }
+
+    const rounded = Math.round(numeric * 2) / 2;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  }
+
   function statusClass(value) {
     const status = String(value ?? "").toLowerCase();
     if (status === "playing") return "badge-playing";
@@ -57,6 +67,7 @@
     escapeHtml,
     initials,
     formatDate,
+    formatPoints,
     statusClass,
     statusLabel,
   };

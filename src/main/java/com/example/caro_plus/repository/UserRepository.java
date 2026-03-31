@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
-    @Query("SELECT u FROM User u ORDER BY u.rating DESC")
+    @Query("SELECT u FROM User u ORDER BY u.rankScore DESC, u.win DESC, u.draw DESC, u.lose ASC, u.id ASC")
     List<User> findTopPlayers();
 
     Optional<User> findByUsername(String username);

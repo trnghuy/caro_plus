@@ -4,6 +4,7 @@ import com.example.caro_plus.model.Game;
 import com.example.caro_plus.model.Room;
 import com.example.caro_plus.model.User;
 import com.example.caro_plus.repository.GameRepository;
+import com.example.caro_plus.repository.RoomRepository;
 import com.example.caro_plus.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,12 +19,18 @@ public class GameService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RoomRepository roomRepository;
+
     @Transactional
     public Game createGame(Room room) {
+        room.setStatus("playing");
+        Room savedRoom = roomRepository.save(room);
+
         Game game = new Game();
-        game.setRoom(room);
-        game.setPlayerX(room.getHost());
-        game.setPlayerO(room.getPlayer2());
+        game.setRoom(savedRoom);
+        game.setPlayerX(savedRoom.getHost());
+        game.setPlayerO(savedRoom.getPlayer2());
         game.setStatus("PLAYING");
         game.setWinner(null);
         return gameRepository.save(game);
@@ -46,44 +53,53 @@ public class GameService {
                     game.setStatus("FINISHED");
                     gameRepository.save(game);
 
+                    // After a match ends, the room should no longer stay stuck in "playing".
+                    // Keep both players in the room so they can replay or leave cleanly.
+                    room.setStatus("full");
+                    roomRepository.save(room);
+
                     if (playerX != null && playerO != null) {
                         updateRank(playerX, playerO, winner);
                     }
                 });
     }
 
-    public int calculateElo(int playerRating, int opponentRating, double score) {
-        int k = 32;
-        double expected = 1.0 / (1 + Math.pow(10, (opponentRating - playerRating) / 400.0));
-        return (int) (playerRating + k * (score - expected));
+    private double adjustSupportPoints(double currentPoints, double delta) {
+        double updated = currentPoints + delta;
+        if (updated < 0) {
+            updated = 0;
+        }
+        return Math.round(updated * 2.0) / 2.0;
+    }
+
+    private int adjustRankScore(int currentScore, int delta) {
+        int updated = currentScore + delta;
+        return Math.max(updated, 0);
     }
 
     public void updateRank(User playerX, User playerO, User winner) {
-        double scoreX;
-        double scoreO;
-
         if (winner == null) {
-            scoreX = 0.5;
-            scoreO = 0.5;
+            playerX.setSupportPoints(adjustSupportPoints(playerX.getSupportPoints(), 0.5));
+            playerO.setSupportPoints(adjustSupportPoints(playerO.getSupportPoints(), 0.5));
+            playerX.setRankScore(adjustRankScore(playerX.getRankScore(), 1));
+            playerO.setRankScore(adjustRankScore(playerO.getRankScore(), 1));
             playerX.setDraw(playerX.getDraw() + 1);
             playerO.setDraw(playerO.getDraw() + 1);
         } else if (winner.getId().equals(playerX.getId())) {
-            scoreX = 1;
-            scoreO = 0;
+            playerX.setSupportPoints(adjustSupportPoints(playerX.getSupportPoints(), 1));
+            playerO.setSupportPoints(adjustSupportPoints(playerO.getSupportPoints(), -1));
+            playerX.setRankScore(adjustRankScore(playerX.getRankScore(), 3));
+            playerO.setRankScore(adjustRankScore(playerO.getRankScore(), -1));
             playerX.setWin(playerX.getWin() + 1);
             playerO.setLose(playerO.getLose() + 1);
         } else {
-            scoreX = 0;
-            scoreO = 1;
+            playerO.setSupportPoints(adjustSupportPoints(playerO.getSupportPoints(), 1));
+            playerX.setSupportPoints(adjustSupportPoints(playerX.getSupportPoints(), -1));
+            playerO.setRankScore(adjustRankScore(playerO.getRankScore(), 3));
+            playerX.setRankScore(adjustRankScore(playerX.getRankScore(), -1));
             playerO.setWin(playerO.getWin() + 1);
             playerX.setLose(playerX.getLose() + 1);
         }
-
-        int newX = calculateElo(playerX.getRating(), playerO.getRating(), scoreX);
-        int newO = calculateElo(playerO.getRating(), playerX.getRating(), scoreO);
-
-        playerX.setRating(newX);
-        playerO.setRating(newO);
 
         userRepository.save(playerX);
         userRepository.save(playerO);

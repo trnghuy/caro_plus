@@ -33,7 +33,23 @@ public class RoomController {
             return "redirect:/";
         }
 
-        roomService.joinRoom(roomId, currentUser);
+        var room = roomService.getRoomById(roomId);
+        if (room == null) {
+            return "redirect:/home";
+        }
+
+        boolean isHost = room.getHost() != null && room.getHost().getId().equals(currentUser.getId());
+        boolean isPlayer2 = room.getPlayer2() != null && room.getPlayer2().getId().equals(currentUser.getId());
+
+        if ("playing".equals(room.getStatus()) && !isHost && !isPlayer2) {
+            return "redirect:/home";
+        }
+
+        try {
+            roomService.joinRoom(roomId, currentUser);
+        } catch (RuntimeException exception) {
+            return "redirect:/home";
+        }
 
         model.addAttribute("roomId", roomId);
         model.addAttribute("user", currentUser);

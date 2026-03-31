@@ -19,6 +19,9 @@
   let winnerSymbol = "";
   let lastMove = null;
   let stompClient = null;
+  let opponentConnected = root.dataset.opponentConnected !== "false";
+  let shouldAutoDisconnect = true;
+  let disconnectSent = false;
 
   const boardElement = document.getElementById("board");
   const gameSummary = document.getElementById("gameSummary");
@@ -35,6 +38,10 @@
   const replayRequestMessage = document.getElementById("replayRequestMessage");
   const waitingReplayModal = document.getElementById("waitingReplayModal");
   const waitingReplayMessage = document.getElementById("waitingReplayMessage");
+  const disconnectModal = document.getElementById("disconnectModal");
+  const disconnectMessage = document.getElementById("disconnectMessage");
+  const hostSupportPoints = document.getElementById("hostSupportPoints");
+  const playerTwoSupportPoints = document.getElementById("playerTwoSupportPoints");
 
   function createEmptyBoard() {
     return Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
@@ -75,10 +82,9 @@
     if (!turnTitle || !turnCopy || !resultBanner || !resultText) return;
 
     if (gameSummary) {
-      gameSummary.classList.remove("state-your-turn", "state-opponent-turn", "state-finished");
+      gameSummary.classList.remove("state-your-turn", "state-opponent-turn", "state-finished", "state-paused");
     }
 
-    const yours = playerSymbol === currentTurn;
     if (winner) {
       if (gameSummary) {
         gameSummary.classList.add("state-finished");
@@ -94,6 +100,18 @@
       return;
     }
 
+    if (!opponentConnected) {
+      if (gameSummary) {
+        gameSummary.classList.add("state-paused");
+      }
+      turnTitle.textContent = "Đối thủ tạm rời trận";
+      turnCopy.textContent = "Bạn có thể chờ họ quay lại hoặc rời trận. Bàn cờ hiện tại sẽ được giữ nguyên.";
+      resultBanner.hidden = false;
+      resultText.textContent = "Khi đối thủ quay lại và bấm tiếp tục tham gia, trận đấu sẽ tiếp tục từ đúng trạng thái hiện tại.";
+      return;
+    }
+
+    const yours = playerSymbol === currentTurn;
     resultBanner.hidden = false;
     resultText.textContent = roomStatus === "playing"
       ? "Bàn cờ đang đồng bộ theo thời gian thực."
@@ -130,6 +148,7 @@
     hideModal(winnerModal);
     hideModal(replayRequestModal);
     hideModal(waitingReplayModal);
+    hideModal(disconnectModal);
   }
 
   function showWinnerModal(winnerUsername, symbol) {
@@ -156,15 +175,66 @@
     showModal(waitingReplayModal);
   }
 
+  function showDisconnectModal(senderUsername) {
+    if (disconnectMessage) {
+      disconnectMessage.textContent =
+        senderUsername + " vừa tạm rời khỏi màn hình thi đấu. Bạn muốn chờ họ quay lại hay rời trận luôn?";
+    }
+    showModal(disconnectModal);
+  }
+
+  function applySnapshot(snapshot) {
+    if (!snapshot) {
+      return;
+    }
+
+    board = Array.isArray(snapshot.board)
+      ? snapshot.board.map((row) => Array.isArray(row) ? row.slice() : Array(BOARD_SIZE).fill(null))
+      : createEmptyBoard();
+    currentTurn = snapshot.currentTurn || currentTurn;
+    winner = snapshot.winner || "";
+    lastMove = snapshot.lastMoveX != null && snapshot.lastMoveY != null
+      ? { x: snapshot.lastMoveX, y: snapshot.lastMoveY }
+      : null;
+    opponentConnected = snapshot.opponentConnected !== false;
+    renderBoard();
+    updateStatusPanel();
+  }
+
+  function updatePlayerPoints(room) {
+    if (!room) {
+      return;
+    }
+
+    if (hostSupportPoints && room.host) {
+      hostSupportPoints.textContent = window.CaroApp.formatPoints(room.host.supportPoints ?? 5);
+    }
+
+    if (playerTwoSupportPoints && room.player2) {
+      playerTwoSupportPoints.textContent = window.CaroApp.formatPoints(room.player2.supportPoints ?? 5);
+    }
+  }
+
+  async function loadPlayerPoints() {
+    const res = await fetch("/api/rooms/" + roomId + "?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error("room points load failed");
+    }
+
+    updatePlayerPoints(await res.json());
+  }
+
   function resetGame(nextTurn) {
     board = createEmptyBoard();
     currentTurn = nextTurn || "X";
     winner = "";
     winnerSymbol = "";
     lastMove = null;
+    opponentConnected = true;
     hideAllModals();
     renderBoard();
     updateStatusPanel();
+    loadPlayerPoints().catch(console.error);
   }
 
   function handleSocketMessage(data) {
@@ -183,6 +253,7 @@
       if (data.type === "WIN") {
         winner = data.winner || "";
         winnerSymbol = data.player;
+        loadPlayerPoints().catch(console.error);
         showWinnerModal(winner, data.player);
       }
       renderBoard();
@@ -190,10 +261,24 @@
       return;
     }
 
+    if (data.type === "PLAYER_DISCONNECTED" && data.sender !== currentUsername) {
+      opponentConnected = false;
+      updateStatusPanel();
+      showDisconnectModal(data.sender);
+      return;
+    }
+
+    if (data.type === "PLAYER_RECONNECTED" && data.sender !== currentUsername) {
+      opponentConnected = true;
+      hideModal(disconnectModal);
+      updateStatusPanel();
+      return;
+    }
+
     if (data.type === "REPLAY_REQUEST") {
       hideModal(winnerModal);
       if (data.sender === currentUsername) {
-        showWaitingReplayModal("Đang chờ " + getOpponentUsername() + " phản hồi lời mời chơi lại.");
+        showWaitingReplayModal("Đang chờ " + getOpponentUsername() + " xác nhận yêu cầu chơi lại...");
       } else {
         showReplayRequestModal(data.sender);
       }
@@ -216,8 +301,31 @@
 
     if (data.type === "PLAYER_LEFT" && data.sender !== currentUsername) {
       alert(data.sender + " đã rời trận đấu.");
+      shouldAutoDisconnect = false;
+      disconnectSent = true;
       window.location.href = "/room?roomId=" + roomId;
     }
+  }
+
+  function sendDisconnectBeacon() {
+    if (!shouldAutoDisconnect || disconnectSent) {
+      return;
+    }
+
+    disconnectSent = true;
+    const url = "/api/games/" + roomId + "/disconnect";
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([], { type: "text/plain" }));
+      return;
+    }
+
+    fetch(url, {
+      method: "POST",
+      keepalive: true,
+    }).catch(function () {
+      // Ignore unload errors.
+    });
   }
 
   function connectWebSocket() {
@@ -247,7 +355,7 @@
 
   function sendMove(x, y) {
     if (!stompClient || !stompClient.connected) return;
-    if (winner) return;
+    if (winner || !opponentConnected) return;
     if (playerSymbol !== currentTurn) return;
     if (board[x][y]) return;
 
@@ -261,6 +369,15 @@
         sender: currentUsername,
       })
     );
+  }
+
+  async function loadGameState() {
+    const res = await fetch("/api/games/" + roomId + "/state", { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error("game state load failed");
+    }
+
+    applySnapshot(await res.json());
   }
 
   async function loadChatMessages() {
@@ -322,9 +439,9 @@
   }
 
   function requestReplay() {
-    if (!winner || !stompClient || !stompClient.connected) return;
+    if (!stompClient || !stompClient.connected || !opponentConnected) return;
     hideModal(winnerModal);
-    showWaitingReplayModal("Đang gửi lời mời chơi lại cho " + getOpponentUsername() + "...");
+    showWaitingReplayModal("Đang chờ " + getOpponentUsername() + " xác nhận yêu cầu chơi lại...");
     stompClient.send("/app/game.replay.request/" + roomId, {}, "{}");
   }
 
@@ -342,12 +459,23 @@
     stompClient.send("/app/game.replay.decline/" + roomId, {}, "{}");
   }
 
+  function waitForReconnect() {
+    hideModal(disconnectModal);
+    updateStatusPanel();
+  }
+
   async function leaveRoom() {
+    shouldAutoDisconnect = false;
+    disconnectSent = true;
+
     const res = await fetch("/api/rooms/leave/" + roomId, { method: "POST" });
     if (res.ok) {
       window.location.href = "/home";
       return;
     }
+
+    shouldAutoDisconnect = true;
+    disconnectSent = false;
     alert("Không thể rời trận đấu lúc này.");
   }
 
@@ -369,6 +497,12 @@
   const winnerLeaveButton = document.getElementById("winnerLeaveButton");
   if (winnerLeaveButton) winnerLeaveButton.addEventListener("click", leaveRoom);
 
+  const waitButton = document.getElementById("waitForReconnectButton");
+  if (waitButton) waitButton.addEventListener("click", waitForReconnect);
+
+  const leaveAfterDisconnectButton = document.getElementById("leaveAfterDisconnectButton");
+  if (leaveAfterDisconnectButton) leaveAfterDisconnectButton.addEventListener("click", leaveRoom);
+
   const sendButton = document.getElementById("sendChatButton");
   if (sendButton) {
     sendButton.addEventListener("click", function () {
@@ -385,9 +519,13 @@
     });
   }
 
+  window.addEventListener("pagehide", sendDisconnectBeacon);
+
   connectWebSocket();
   renderBoard();
   updateStatusPanel();
+  loadGameState().catch(console.error);
+  loadPlayerPoints().catch(console.error);
   loadChatMessages().catch(console.error);
   setInterval(function () {
     loadChatMessages().catch(console.error);

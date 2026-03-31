@@ -56,8 +56,19 @@
     return room.player2 ? "full" : "waiting";
   }
 
+  function roomPlayerCount(room) {
+    return (room.host ? 1 : 0) + (room.player2 ? 1 : 0);
+  }
+
   function roomCount(room) {
-    return room.player2 ? "2/2" : "1/2";
+    return roomPlayerCount(room) + "/2";
+  }
+
+  function isCurrentUserMember(room) {
+    return !!(
+      (room.host && room.host.username === currentUsername) ||
+      (room.player2 && room.player2.username === currentUsername)
+    );
   }
 
   function renderRooms(rooms) {
@@ -70,15 +81,25 @@
     roomList.innerHTML = rooms
       .map((room) => {
         const status = roomStatus(room);
-        const joinDisabled = status === "playing" || status === "full";
+        const isMember = isCurrentUserMember(room);
+        const joinDisabled = (status === "playing" || status === "full") && !isMember;
         const hostName = room.host ? room.host.username : "Chưa có host";
+        const title = room.host
+          ? "Phòng của " + window.CaroApp.escapeHtml(hostName)
+          : "Phòng trống";
+        const actionLabel = status === "playing" && isMember ? "Tiếp tục" : (joinDisabled ? "Không thể vào" : "Tham gia");
+        const actionClass = status === "playing" && isMember ? "btn btn-secondary" : "btn btn-primary";
+        const actionHandler = isMember
+          ? "window.location.href='/room?roomId=" + room.id + "'"
+          : "window.CaroHome.joinRoom('" + room.id + "')";
+
         return `
           <article class="room-card">
             <div>
               <div class="room-card-head">
                 <div>
                   <p class="room-id">Room #${room.id}</p>
-                  <h3 class="room-card-title">Phòng của ${window.CaroApp.escapeHtml(hostName)}</h3>
+                  <h3 class="room-card-title">${title}</h3>
                 </div>
                 <span class="badge ${window.CaroApp.statusClass(status)}">${window.CaroApp.statusLabel(status)}</span>
               </div>
@@ -90,8 +111,8 @@
             </div>
             <div class="room-card-actions">
               <button class="btn btn-secondary" type="button" onclick="window.location.href='/room?roomId=${room.id}'">Xem phòng</button>
-              <button class="btn btn-primary" type="button" ${joinDisabled ? "disabled" : ""} onclick="window.CaroHome.joinRoom('${room.id}')">
-                ${joinDisabled ? "Không thể vào" : "Tham gia"}
+              <button class="${actionClass}" type="button" ${joinDisabled ? "disabled" : ""} onclick="${actionHandler}">
+                ${actionLabel}
               </button>
             </div>
           </article>
@@ -115,11 +136,19 @@
             <div class="rank-position">#${index + 1}</div>
             <div>
               <p class="rank-name">${window.CaroApp.escapeHtml(user.username)}</p>
-              <div class="rank-stats">Thắng ${user.win} · Thua ${user.lose} · Hòa ${user.draw}</div>
+              <div class="rank-stats">
+                <span class="rank-support">
+                  <span class="star-points" aria-hidden="true">★</span>
+                  ${window.CaroApp.formatPoints(user.supportPoints ?? 5)}
+                </span>
+                · Thắng ${user.win}
+                · Thua ${user.lose}
+                · Hòa ${user.draw}
+              </div>
             </div>
             <div class="kpi">
-              <span class="kpi-value">${user.rating ?? 1000}</span>
-              <span class="kpi-label">ELO</span>
+              <span class="kpi-value">${user.rankScore ?? 0}</span>
+              <span class="kpi-label">Điểm</span>
             </div>
           </article>
         `;

@@ -21,6 +21,8 @@
   const chatStatus = document.getElementById("chatStatus");
   const renderedIds = new Set();
   let stompClient = null;
+  let shouldAutoLeave = true;
+  let leaveRequestSent = false;
 
   function renderPlayerCard(element, user, symbol, role, isCurrentUser) {
     if (!element) return;
@@ -28,12 +30,23 @@
     const badge = waiting
       ? '<span class="badge badge-waiting">Đang chờ</span>'
       : `<span class="badge ${isCurrentUser ? "badge-ready" : "badge-online"}">${isCurrentUser ? "Bạn" : "Đã vào phòng"}</span>`;
+    const supportPoints = waiting
+      ? ""
+      : `
+        <span class="player-points">
+          <span class="star-points" aria-hidden="true">★</span>
+          <span>${window.CaroApp.formatPoints(user.supportPoints ?? 5)}</span>
+        </span>
+      `;
 
     element.innerHTML = `
       <div class="player-top">
         <div>
           <p class="eyebrow">${role}</p>
-          <h3 class="player-name">${waiting ? "Đang chờ người chơi" : window.CaroApp.escapeHtml(user.username)}</h3>
+          <div class="player-name-row">
+            <h3 class="player-name">${waiting ? "Đang chờ người chơi" : window.CaroApp.escapeHtml(user.username)}</h3>
+            ${supportPoints}
+          </div>
         </div>
         <div class="player-symbol ${waiting ? "empty" : "symbol-" + symbol.toLowerCase()}">${symbol}</div>
       </div>
@@ -47,28 +60,51 @@
   function updateRoomSummary(room) {
     if (!room) return;
     const status = room.status || (room.player2 ? "full" : "waiting");
+    const isHost = room.host && room.host.username === currentUsername;
+    const isPlayer2 = room.player2 && room.player2.username === currentUsername;
+    const isMember = !!(isHost || isPlayer2);
+
     if (roomTitle) roomTitle.textContent = "Room #" + room.id;
     if (roomHost) roomHost.textContent = room.host ? room.host.username : "--";
     if (roomCode) roomCode.textContent = "RM-" + String(room.id).padStart(4, "0");
-    if (roomPlayers) roomPlayers.textContent = room.player2 ? "2 / 2" : "1 / 2";
+    if (roomPlayers) {
+      const count = (room.host ? 1 : 0) + (room.player2 ? 1 : 0);
+      roomPlayers.textContent = count + " / 2";
+    }
     if (roomStatus) {
       roomStatus.className = "badge " + window.CaroApp.statusClass(status);
       roomStatus.textContent = window.CaroApp.statusLabel(status);
     }
 
-    const ready = !!room.player2;
+    const ready = !!room.player2 && status !== "playing";
+    const canContinue = status === "playing" && isMember;
+
     if (roomHint) {
-      roomHint.textContent = ready
-        ? "Đội hình đã đủ. Host có thể bắt đầu trận bất cứ lúc nào."
-        : "Chờ người chơi thứ hai tham gia để mở nút bắt đầu.";
+      if (canContinue) {
+        roomHint.textContent = "Trận đấu vẫn đang diễn ra. Bạn có thể quay lại đúng ván hiện tại mà không bị reset bàn cờ.";
+      } else if (status === "playing") {
+        roomHint.textContent = "Phòng này đang ở trạng thái thi đấu. Hãy chờ trận hiện tại kết thúc hoặc người chơi rời phòng.";
+      } else {
+        roomHint.textContent = ready
+          ? "Đội hình đã đủ. Host có thể bắt đầu trận bất cứ lúc nào."
+          : "Chờ người chơi thứ hai tham gia để mở nút bắt đầu.";
+      }
     }
 
     if (startButton) {
-      startButton.disabled = !ready || !room.host || room.host.username !== currentUsername;
+      if (canContinue) {
+        startButton.textContent = "Tiếp tục tham gia";
+        startButton.dataset.mode = "continue";
+        startButton.disabled = false;
+      } else {
+        startButton.textContent = "Bắt đầu trận";
+        startButton.dataset.mode = "start";
+        startButton.disabled = !ready || !isHost;
+      }
     }
 
-    renderPlayerCard(player1, room.host, "X", "Host", room.host && room.host.username === currentUsername);
-    renderPlayerCard(player2, room.player2, "O", "Người chơi 2", room.player2 && room.player2.username === currentUsername);
+    renderPlayerCard(player1, room.host, "X", "Host", isHost);
+    renderPlayerCard(player2, room.player2, "O", "Người chơi 2", isPlayer2);
   }
 
   async function loadRoom() {
@@ -136,6 +172,27 @@
     chatInput.value = "";
   }
 
+  function sendLeaveBeacon() {
+    if (!shouldAutoLeave || leaveRequestSent) {
+      return;
+    }
+
+    leaveRequestSent = true;
+    const url = "/api/rooms/leave/" + roomId;
+
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([], { type: "text/plain" }));
+      return;
+    }
+
+    fetch(url, {
+      method: "POST",
+      keepalive: true,
+    }).catch(function () {
+      // Ignore unload errors.
+    });
+  }
+
   function connectWebSocket() {
     const socket = new SockJS("/ws");
     stompClient = Stomp.over(socket);
@@ -149,6 +206,8 @@
       stompClient.subscribe("/topic/room/" + roomId, function (response) {
         const message = JSON.parse(response.body);
         if (message.type === "START") {
+          shouldAutoLeave = false;
+          leaveRequestSent = true;
           window.location.href = "/game?roomId=" + roomId;
           return;
         }
@@ -167,6 +226,13 @@
   }
 
   async function startGame() {
+    if (startButton && startButton.dataset.mode === "continue") {
+      shouldAutoLeave = false;
+      leaveRequestSent = true;
+      window.location.href = "/game?roomId=" + roomId;
+      return;
+    }
+
     const res = await fetch("/api/rooms/start/" + roomId, { method: "POST" });
     if (!res.ok) {
       alert("Chưa thể bắt đầu trận đấu.");
@@ -174,11 +240,17 @@
   }
 
   async function leaveRoom() {
+    shouldAutoLeave = false;
+    leaveRequestSent = true;
+
     const res = await fetch("/api/rooms/leave/" + roomId, { method: "POST" });
     if (res.ok) {
       window.location.href = "/home";
       return;
     }
+
+    shouldAutoLeave = true;
+    leaveRequestSent = false;
     alert("Không thể rời phòng lúc này.");
   }
 
@@ -210,6 +282,8 @@
   if (leaveButton) {
     leaveButton.addEventListener("click", leaveRoom);
   }
+
+  window.addEventListener("pagehide", sendLeaveBeacon);
 
   loadRoom().catch(console.error);
   loadMessages().catch(console.error);

@@ -47,7 +47,7 @@
 
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
 }
 
@@ -56,6 +56,17 @@
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(37, 99, 235, 0.08);
+}
+
+.kpi-value--star {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star-points {
+  color: #f5b301;
+  text-shadow: 0 0 10px rgba(245, 179, 1, 0.22);
 }
 
 .quick-actions {
@@ -220,6 +231,20 @@
   color: var(--muted);
   font-size: 0.84rem;
   margin-top: 2px;
+  line-height: 1.45;
+}
+
+.rank-support {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: #8a6400;
+}
+
+.rank-item .kpi {
+  justify-items: end;
+  text-align: right;
 }
 
 .modal-form {
@@ -246,7 +271,6 @@
 
 @media (max-width: 768px) {
   .summary-row,
-  .summary-stats,
   .room-card {
     grid-template-columns: 1fr;
     display: grid;
@@ -265,5 +289,14 @@
   .room-card-actions .btn,
   .quick-action .btn {
     width: 100%;
+  }
+
+  .rank-item {
+    grid-template-columns: 1fr;
+  }
+
+  .rank-item .kpi {
+    justify-items: start;
+    text-align: left;
   }
 }

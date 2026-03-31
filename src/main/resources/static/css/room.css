@@ -135,6 +135,30 @@ body.room-body {
   gap: 10px;
 }
 
+.player-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.player-points {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(245, 179, 1, 0.12);
+  color: #8a6400;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.player-points .star-points {
+  color: #f5b301;
+  text-shadow: 0 0 10px rgba(245, 179, 1, 0.22);
+}
+
 .player-symbol {
   width: 42px;
   height: 42px;
@@ -174,13 +198,60 @@ body.room-body {
 }
 
 .room-tips-card {
-  padding: 12px 14px;
+  padding: 14px;
 }
 
-.room-tips {
-  display: flex;
+.room-tips-head {
+  margin-bottom: 10px;
+}
+
+.room-tips-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tip-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.tip-title {
+  margin: 0 0 10px;
+  font-size: 0.96rem;
+}
+
+.tip-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.tip-list li + li {
+  margin-top: 4px;
+}
+
+.tip-score-grid {
+  display: grid;
   gap: 8px;
-  flex-wrap: wrap;
+}
+
+.tip-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.04);
+  color: var(--muted);
+}
+
+.tip-score-row strong {
+  color: var(--text);
 }
 
 .room-side {
@@ -319,7 +390,8 @@ body.room-body {
 }
 
 @media (max-width: 768px) {
-  .player-slots {
+  .player-slots,
+  .room-tips-grid {
     grid-template-columns: 1fr;
   }
 
@@ -329,5 +401,10 @@ body.room-body {
 
   .room-chat-card .chat-bubble {
     max-width: 100%;
+  }
+
+  .tip-score-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

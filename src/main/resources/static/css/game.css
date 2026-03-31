@@ -253,36 +253,73 @@ body.game-body {
   letter-spacing: 0.06em;
 }
 
-.player-mini-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.summary-strip--player {
+  position: relative;
   gap: 8px;
+  padding-right: 54px;
 }
 
-.player-mini {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.76);
-  border: 1px solid rgba(37, 99, 235, 0.08);
-}
-
-.player-mini strong {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 0.9rem;
-}
-
-.player-mini .helper-text {
-  font-size: 0.78rem;
-}
-
-.player-mini.you {
+.summary-strip--player.is-you {
   border-color: rgba(16, 185, 129, 0.22);
   background: rgba(16, 185, 129, 0.08);
+}
+
+.summary-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-strip--player strong {
+  display: block;
+  font-size: 0.96rem;
+  line-height: 1.1;
+}
+
+.summary-player-name {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-player-points {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(245, 179, 1, 0.12);
+  color: #8a6400;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.star-points {
+  color: #f5b301;
+  text-shadow: 0 0 10px rgba(245, 179, 1, 0.22);
+}
+
+.summary-player-symbol {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.summary-player-symbol--o {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .result-banner {
@@ -469,7 +506,6 @@ body.game-body {
     padding: 8px 0 16px;
   }
 
-  .page--game .player-mini-grid,
   .page--game .game-actions,
   .summary-strip-grid {
     grid-template-columns: 1fr;

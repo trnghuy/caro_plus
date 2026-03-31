@@ -26,7 +26,10 @@ public class User {
 
     private Date createdAt;
 
-    private int rating = 1000; // điểm ELO
+    @Column(name = "rating")
+    private double supportPoints = 5.0;
+
+    private int rankScore = 0;
     private int win = 0;
     private int lose = 0;
     private int draw = 0;
