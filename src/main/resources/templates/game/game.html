@@ -79,6 +79,44 @@
         background: #e5e7eb;
         color: #111827;
       }
+
+      .chat-box {
+        max-width: 700px;
+        margin: 30px auto 0;
+        text-align: left;
+      }
+
+      .chat-messages {
+        border: 1px solid #ccc;
+        height: 220px;
+        overflow-y: auto;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      .chat-message {
+        margin-bottom: 10px;
+      }
+
+      .chat-input {
+        display: flex;
+        gap: 10px;
+      }
+
+      .chat-input input {
+        flex: 1;
+        padding: 8px;
+      }
+
+      .chat-meta {
+        font-size: 12px;
+        color: #666;
+      }
+
+      .system-message {
+        color: #666;
+        font-style: italic;
+      }
     </style>
   </head>
   <body>
@@ -92,12 +130,8 @@
         <h3>Game Finished</h3>
         <p id="winnerMessage"></p>
         <div class="modal-actions">
-          <button class="primary-btn" onclick="requestReplay()">
-            Chơi lại
-          </button>
-          <button class="secondary-btn" onclick="leaveRoom()">
-            Thoát phòng
-          </button>
+          <button class="primary-btn" onclick="requestReplay()">Chơi lại</button>
+          <button class="secondary-btn" onclick="leaveRoom()">Thoát phòng</button>
         </div>
       </div>
     </div>
@@ -107,12 +141,8 @@
         <h3>Replay Request</h3>
         <p id="replayRequestMessage"></p>
         <div class="modal-actions">
-          <button class="primary-btn" onclick="acceptReplay()">
-            Đồng ý
-          </button>
-          <button class="secondary-btn" onclick="declineReplay()">
-            Từ chối
-          </button>
+          <button class="primary-btn" onclick="acceptReplay()">Đồng ý</button>
+          <button class="secondary-btn" onclick="declineReplay()">Từ chối</button>
         </div>
       </div>
     </div>
@@ -124,6 +154,15 @@
       </div>
     </div>
 
+    <div class="chat-box">
+      <h3>In-Game Chat</h3>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input">
+        <input id="chatInput" type="text" maxlength="500" placeholder="Nhập tin nhắn..." />
+        <button onclick="sendChatMessage()">Gửi</button>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
 
@@ -131,6 +170,7 @@
       /*<![CDATA[*/
       const roomId = /*[[${roomId}]]*/ 0;
       const currentUsername = /*[[${user.username}]]*/ "guest";
+      const currentUserId = /*[[${user.id}]]*/ 0;
       const playerSymbol = /*[[${playerSymbol}]]*/ "";
       const initialTurn = /*[[${currentTurn}]]*/ "X";
       const hostUsername = /*[[${room.host.username}]]*/ "host";
@@ -144,6 +184,7 @@
       let winner = null;
       let winnerSymbol = null;
       let stompClient = null;
+      const renderedMessageIds = new Set();
 
       function connectWS() {
         const socket = new SockJS("/ws");
@@ -153,6 +194,12 @@
           stompClient.subscribe("/topic/game/" + roomId, function (msg) {
             const data = JSON.parse(msg.body);
             handleSocketMessage(data);
+          });
+
+          stompClient.subscribe("/topic/rooms/" + roomId + "/chat", function (frame) {
+            renderChatMessage(JSON.parse(frame.body));
+            const container = document.getElementById("chatMessages");
+            container.scrollTop = container.scrollHeight;
           });
         });
       }
@@ -205,7 +252,7 @@
           hideWinnerModal();
           if (data.sender === currentUsername) {
             showWaitingReplayModal(
-              "Dang cho " + getOpponentUsername() + " tra loi loi moi choi lai...",
+              "Dang cho " + getOpponentUsername() + " tra loi loi moi choi lai..."
             );
           } else {
             showReplayRequestModal(data.sender);
@@ -232,6 +279,93 @@
           alert(data.sender + " đã thoát phòng");
           window.location.href = "/room?roomId=" + roomId;
         }
+      }
+
+      async function loadChatMessages() {
+        try {
+          const res = await fetch("/api/rooms/" + roomId + "/messages");
+          if (!res.ok) {
+            console.error("Không tải được lịch sử chat");
+            return;
+          }
+
+          const messages = await res.json();
+          const container = document.getElementById("chatMessages");
+          messages.forEach(renderChatMessage);
+          container.scrollTop = container.scrollHeight;
+        } catch (error) {
+          console.error("Lỗi tải chat:", error);
+        }
+      }
+
+      async function sendChatMessage() {
+        const input = document.getElementById("chatInput");
+        const content = input.value.trim();
+
+        if (!content) {
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/rooms/" + roomId + "/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              senderId: Number(currentUserId),
+              content: content
+            }),
+          });
+
+          if (!res.ok) {
+            console.error("Gửi chat thất bại");
+            return;
+          }
+
+          const message = await res.json();
+          renderChatMessage(message);
+          const container = document.getElementById("chatMessages");
+          container.scrollTop = container.scrollHeight;
+        } catch (error) {
+          console.error("Lỗi gửi chat:", error);
+          return;
+        }
+
+        input.value = "";
+      }
+
+      function renderChatMessage(message) {
+        if (!message || !message.id || renderedMessageIds.has(message.id)) {
+          return;
+        }
+
+        renderedMessageIds.add(message.id);
+        const container = document.getElementById("chatMessages");
+        const item = document.createElement("div");
+
+        if (message.type === "SYSTEM") {
+          item.className = "chat-message system-message";
+          item.textContent = "[SYSTEM] " + message.content;
+        } else {
+          item.className = "chat-message";
+          item.innerHTML =
+            "<strong>" + escapeHtml(message.senderUsername || "Unknown") + ":</strong> " +
+            escapeHtml(message.content || "") +
+            '<div class="chat-meta">' + formatTime(message.createdAt) + "</div>";
+        }
+
+        container.appendChild(item);
+      }
+
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function formatTime(value) {
+        if (!value) return "";
+        return new Date(value).toLocaleString();
       }
 
       function renderBoard() {
@@ -303,7 +437,7 @@
 
         hideWinnerModal();
         showWaitingReplayModal(
-          "Đang gửi lời mời cho " + getOpponentUsername() + "...",
+          "Đang gửi lời mời cho " + getOpponentUsername() + "..."
         );
 
         stompClient.send("/app/game.replay.request/" + roomId, {}, "{}");
@@ -344,9 +478,18 @@
         renderBoard();
       }
 
+      document.getElementById("chatInput").addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          sendChatMessage();
+        }
+      });
+
       connectWS();
       updateTurn();
       renderBoard();
+      loadChatMessages();
+      setInterval(loadChatMessages, 2000);
     </script>
   </body>
 </html>

@@ -25,10 +25,43 @@
         padding: 10px 20px;
         margin-top: 20px;
       }
+      .chat-box {
+        max-width: 700px;
+        margin: 30px auto 0;
+        text-align: left;
+      }
+      .chat-messages {
+        border: 1px solid #ccc;
+        height: 220px;
+        overflow-y: auto;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .chat-message {
+        margin-bottom: 10px;
+      }
+      .chat-input {
+        display: flex;
+        gap: 10px;
+      }
+      .chat-input input {
+        flex: 1;
+        padding: 8px;
+      }
+      .chat-meta {
+        font-size: 12px;
+        color: #666;
+      }
+      .system-message {
+        color: #666;
+        font-style: italic;
+      }
     </style>
   </head>
   <body>
     <h2>Room</h2>
+    <div id="roomData"
+         th:attr="data-room-id=${roomId},data-user-id=${user.id},data-username=${user.username}"></div>
 
     <div class="container">
       <div class="player" id="player1">Player 1</div>
@@ -36,55 +69,56 @@
     </div>
 
     <button onclick="startGame()">Chơi</button>
-
     <button onclick="leaveRoom()">Rời phòng</button>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <div class="chat-box">
+      <h3>Room Chat</h3>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input">
+        <input id="chatInput" type="text" maxlength="500" placeholder="Nhập tin nhắn..." />
+        <button onclick="sendChatMessage()">Gửi</button>
+      </div>
+    </div>
 
-    <script th:inline="javascript">
-      /*<![CDATA[*/
-      // Cách viết này giúp JavaScript không bị lỗi syntax khi bạn code ở VS Code
-      // Nhưng khi chạy, Thymeleaf sẽ tự động thay thế giá trị vào
-      const currentUsername = /*[[${user.username}]]*/ "guest";
-      const roomId = /*[[${roomId}]]*/ 0;
-      /*]]>*/
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
 
     <script>
+      const roomData = document.getElementById("roomData");
+      const roomId = roomData.dataset.roomId || new URLSearchParams(window.location.search).get("roomId");
+      const currentUserId = roomData.dataset.userId;
       let stompClient = null;
-      // const urlParams = new URLSearchParams(window.location.search);
-      // const roomId = urlParams.get("roomId");
+      const renderedMessageIds = new Set();
 
       function connectWebSocket() {
         const socket = new SockJS("/ws");
         stompClient = Stomp.over(socket);
+        stompClient.debug = null;
 
         stompClient.connect(
           {},
-          function (frame) {
-            console.log("Connected: " + frame);
-
-            // Đăng ký kênh hóng tin của phòng này
+          function () {
             stompClient.subscribe("/topic/room/" + roomId, function (response) {
               const message = JSON.parse(response.body);
 
               if (message.type === "JOIN" || message.type === "LEAVE") {
-                // Có người vào hoặc ra -> Tải lại thông tin phòng để cập nhật tên
                 setTimeout(loadRoom, 150);
               }
 
               if (message.type === "START") {
-                // Nếu chủ phòng bấm Play, tất cả cùng chuyển sang màn hình Game
                 window.location.href = "/game?roomId=" + roomId;
               }
             });
 
-            // Không cần gửi JOIN nữa vì server đã gửi khi joinRoom
+            stompClient.subscribe("/topic/rooms/" + roomId + "/chat", function (frame) {
+              renderChatMessage(JSON.parse(frame.body));
+              const container = document.getElementById("chatMessages");
+              container.scrollTop = container.scrollHeight;
+            });
           },
           function (error) {
             console.log("Lỗi kết nối WS: " + error);
-          },
+          }
         );
       }
 
@@ -92,6 +126,12 @@
         const res = await fetch("/api/rooms/" + roomId + "?t=" + Date.now(), {
           cache: "no-store",
         });
+
+        if (!res.ok) {
+          console.error("Không tải được thông tin phòng");
+          return;
+        }
+
         const room = await res.json();
 
         document.getElementById("player1").innerText = room.host
@@ -103,14 +143,11 @@
           : "Waiting...";
       }
 
-      // Sửa lại hàm startGame của bạn một chút
       async function startGame() {
         const res = await fetch("/api/rooms/start/" + roomId, {
           method: "POST",
         });
-        if (res.ok) {
-          // Server sẽ gửi WebSocket message "START"
-        } else {
+        if (!res.ok) {
           alert("Chưa đủ người!");
         }
       }
@@ -127,9 +164,105 @@
         }
       }
 
-      // Khởi tạo
+      async function loadChatMessages() {
+        try {
+          const res = await fetch("/api/rooms/" + roomId + "/messages");
+          if (!res.ok) {
+            console.error("Không tải được lịch sử chat");
+            return;
+          }
+
+          const messages = await res.json();
+          const container = document.getElementById("chatMessages");
+          messages.forEach(renderChatMessage);
+          container.scrollTop = container.scrollHeight;
+        } catch (error) {
+          console.error("Lỗi tải chat:", error);
+        }
+      }
+
+      async function sendChatMessage() {
+        const input = document.getElementById("chatInput");
+        const content = input.value.trim();
+
+        if (!content) {
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/rooms/" + roomId + "/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              senderId: Number(currentUserId),
+              content: content
+            })
+          });
+
+          if (!res.ok) {
+            console.error("Gửi chat thất bại");
+            return;
+          }
+
+          const message = await res.json();
+          renderChatMessage(message);
+          const container = document.getElementById("chatMessages");
+          container.scrollTop = container.scrollHeight;
+        } catch (error) {
+          console.error("Lỗi gửi chat:", error);
+          return;
+        }
+
+        input.value = "";
+      }
+
+      function renderChatMessage(message) {
+        if (!message || !message.id || renderedMessageIds.has(message.id)) {
+          return;
+        }
+
+        renderedMessageIds.add(message.id);
+        const container = document.getElementById("chatMessages");
+        const item = document.createElement("div");
+
+        if (message.type === "SYSTEM") {
+          item.className = "chat-message system-message";
+          item.textContent = "[SYSTEM] " + message.content;
+        } else {
+          item.className = "chat-message";
+          item.innerHTML =
+            "<strong>" + escapeHtml(message.senderUsername || "Unknown") + ":</strong> " +
+            escapeHtml(message.content || "") +
+            '<div class="chat-meta">' + formatTime(message.createdAt) + "</div>";
+        }
+
+        container.appendChild(item);
+      }
+
+      function escapeHtml(value) {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function formatTime(value) {
+        if (!value) return "";
+        return new Date(value).toLocaleString();
+      }
+
+      document.getElementById("chatInput").addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          sendChatMessage();
+        }
+      });
+
       loadRoom();
+      loadChatMessages();
       connectWebSocket();
+      setInterval(loadRoom, 2000);
+      setInterval(loadChatMessages, 2000);
     </script>
   </body>
 </html>

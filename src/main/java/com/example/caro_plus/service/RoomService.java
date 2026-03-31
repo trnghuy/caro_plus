@@ -34,9 +34,7 @@ public class RoomService {
     @Autowired
     private GameService gameService;
 
-    // tạo phòng
     public Room createRoom(User user) {
-
         if (roomPlayerRepository.existsActiveRoomByUser(user)) {
             throw new RuntimeException("Bạn đang ở trong một phòng rồi!");
         }
@@ -48,58 +46,45 @@ public class RoomService {
 
         Room savedRoom = roomRepository.save(room);
 
-        // tránh duplicate user
         if (roomPlayerRepository.findByRoomAndPlayer(savedRoom, user).isEmpty()) {
-
             RoomPlayer rp = new RoomPlayer();
             rp.setRoom(savedRoom);
             rp.setPlayer(user);
             rp.setSymbol('X');
-
             roomPlayerRepository.save(rp);
         }
 
         return savedRoom;
     }
 
-    // join phòng
-    @Transactional // Rất quan trọng để dữ liệu đồng bộ ngay
+    @Transactional
     public Room joinRoom(Long roomId, User user) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
-        // 1. Nếu user đã là Host thì không cần join nữa
         if (room.getHost().getId().equals(user.getId())) {
             return room;
         }
 
-        // 2. Kiểm tra nếu user đã có trong bảng RoomPlayer (đã join rồi)
         if (roomPlayerRepository.findByRoomAndPlayer(room, user).isPresent()) {
             return room;
         }
 
-        // 3. Kiểm tra xem phòng đã đủ 2 người chưa (dựa trên cột player2 của bảng Room)
         if (room.getPlayer2() != null) {
             throw new RuntimeException("Phòng đã đầy!");
         }
 
-        // --- BẮT ĐẦU CẬP NHẬT ---
-
-        // A. Cập nhật trực tiếp vào bảng Room (Để hiển thị nhanh)
         room.setPlayer2(user);
         room.setStatus("full");
 
-        // B. Lưu vào bảng trung gian RoomPlayer (Để quản lý Symbol 'O')
         RoomPlayer rp = new RoomPlayer();
         rp.setRoom(room);
         rp.setPlayer(user);
         rp.setSymbol('O');
         roomPlayerRepository.save(rp);
 
-        // C. Lưu lại bảng Room
         Room savedRoom = roomRepository.save(room);
 
-        // Gửi thông báo qua WebSocket
         GameMessage msg = new GameMessage();
         msg.setType("JOIN");
         msg.setSender(user.getUsername());
@@ -109,10 +94,8 @@ public class RoomService {
         return savedRoom;
     }
 
-    // rời phòng
     @Transactional
     public Room leaveRoom(Long roomId, User user) {
-
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
@@ -129,6 +112,7 @@ public class RoomService {
             roomRepository.delete(room);
             return null;
         }
+
         if (isHostLeaving) {
             User newHost = room.getPlayer2();
             room.setHost(newHost);
@@ -144,7 +128,6 @@ public class RoomService {
         gameState.removeRoom(roomId);
         Room savedRoom = roomRepository.save(room);
 
-            // Gửi thông báo qua WebSocket
         GameMessage roomMessage = new GameMessage();
         roomMessage.setType("LEAVE");
         roomMessage.setSender(user.getUsername());
@@ -162,19 +145,15 @@ public class RoomService {
         return savedRoom;
     }
 
-    // start game
     @Transactional
     public Room startGame(Long roomId, User user) {
-
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Room không tồn tại"));
 
-        // ❗ check có phải host không
         if (!room.getHost().getId().equals(user.getId())) {
             throw new RuntimeException("Chỉ host mới được start game!");
         }
 
-        // ❗ check đủ 2 người
         if (room.getPlayer2() == null || roomPlayerRepository.countByRoom(room) != 2) {
             throw new RuntimeException("Chua du nguoi de bat dau!");
         }
@@ -184,8 +163,7 @@ public class RoomService {
         gameState.initializeRoom(roomId, room.getHost().getUsername(), room.getPlayer2().getUsername());
         gameService.createGame(savedRoom);
 
-            // Gửi thông báo qua WebSocket
-            GameMessage msg = new GameMessage();
+        GameMessage msg = new GameMessage();
         msg.setType("START");
         msg.setSender(user.getUsername());
         msg.setRoomId(roomId.toString());
