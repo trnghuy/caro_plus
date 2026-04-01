@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Admin Rooms</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-app">
+      <div th:replace="~{admin/fragments/sidebar :: sidebar(${activePage}, ${adminUser})}"></div>
+      <main class="admin-workspace">
+        <div th:replace="~{admin/fragments/topbar :: topbar(${pageTitle})}"></div>
+        <div class="admin-workspace-scroll">
+          <div th:replace="~{admin/fragments/flash :: flashMessages}"></div>
+
+          <section class="admin-surface">
+            <div class="admin-panel-head">
+              <div>
+                <p class="admin-section-tag">Phòng</p>
+                <h2 class="admin-panel-title">Room chờ, room đang chơi và room trống</h2>
+              </div>
+            </div>
+
+            <form class="admin-filter-grid admin-filter-grid--rooms" method="get" th:action="@{/admin/rooms}">
+              <input class="input" type="text" name="roomQ" th:value="${roomQ}" placeholder="Tìm theo room id hoặc tên người chơi" />
+              <select class="input" name="roomStatus">
+                <option value="">Tất cả trạng thái</option>
+                <option value="waiting" th:selected="${roomStatus == 'waiting'}">waiting</option>
+                <option value="full" th:selected="${roomStatus == 'full'}">full</option>
+                <option value="playing" th:selected="${roomStatus == 'playing'}">playing</option>
+              </select>
+              <button class="btn btn-primary" type="submit">Lọc</button>
+            </form>
+
+            <div class="admin-table-shell">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Host</th>
+                    <th>Player 2</th>
+                    <th>Người chơi</th>
+                    <th>Trạng thái</th>
+                    <th>Tạo lúc</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:if="${rooms.isEmpty()}"><td class="empty-cell" colspan="7">Không có phòng phù hợp bộ lọc.</td></tr>
+                  <tr th:each="room : ${rooms.content}">
+                    <td th:text="${room.id}">1</td>
+                    <td th:text="${room.host != null ? room.host.username : 'Chưa có host'}">host</td>
+                    <td th:text="${room.player2 != null ? room.player2.username : 'Trống'}">player2</td>
+                    <td th:text="|${(room.host != null ? 1 : 0) + (room.player2 != null ? 1 : 0)}/2|">0/2</td>
+                    <td><span class="badge" th:text="${room.status}">waiting</span></td>
+                    <td th:text="${room.createdAt != null ? #dates.format(room.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                    <td>
+                      <div class="admin-action-wrap">
+                        <a class="btn btn-secondary btn--compact" th:href="@{'/admin/rooms/' + ${room.id}}">Chi tiết</a>
+                        <form class="inline-form" method="post" th:action="@{'/admin/rooms/' + ${room.id} + '/close'}">
+                          <button class="btn btn-secondary btn--compact" type="submit" data-confirm="Force đóng phòng này và dọn trạng thái đang chơi?">Đóng</button>
+                        </form>
+                        <form class="inline-form" method="post" th:action="@{'/admin/rooms/' + ${room.id} + '/reset'}">
+                          <button class="btn btn-secondary btn--compact" type="submit" data-confirm="Reset phòng này về trạng thái trống?">Reset</button>
+                        </form>
+                        <form class="inline-form" method="post" th:action="@{'/admin/rooms/' + ${room.id} + '/delete'}">
+                          <button class="btn btn-danger btn--compact" type="submit" data-confirm="Xóa phòng này? Chỉ nên dùng khi phòng đã không còn dữ liệu liên quan.">Xóa</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="admin-pagination">
+              <span th:text="|Trang ${rooms.number + 1}/${rooms.totalPages == 0 ? 1 : rooms.totalPages}|">Trang 1</span>
+              <div class="admin-pagination-actions">
+                <a class="btn btn-secondary btn--compact" th:if="${rooms.hasPrevious()}" th:href="@{/admin/rooms(roomPage=${rooms.number - 1},roomQ=${roomQ},roomStatus=${roomStatus})}">Trang trước</a>
+                <a class="btn btn-secondary btn--compact" th:if="${rooms.hasNext()}" th:href="@{/admin/rooms(roomPage=${rooms.number + 1},roomQ=${roomQ},roomStatus=${roomStatus})}">Trang sau</a>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

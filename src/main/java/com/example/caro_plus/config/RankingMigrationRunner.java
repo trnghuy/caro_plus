@@ -35,6 +35,16 @@ public class RankingMigrationRunner implements ApplicationRunner {
                 changed = true;
             }
 
+            if (user.getRole() == null || user.getRole().isBlank()) {
+                user.setRole("USER");
+                changed = true;
+            }
+
+            if (!user.isEnabled()) {
+                user.setEnabled(true);
+                changed = true;
+            }
+
             int derivedRankScore = user.getWin() * 3 + user.getDraw();
             if (user.getRankScore() == 0 && (user.getWin() > 0 || user.getLose() > 0 || user.getDraw() > 0)) {
                 user.setRankScore(derivedRankScore);

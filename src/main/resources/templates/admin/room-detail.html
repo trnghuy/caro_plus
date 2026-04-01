@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Room Detail</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="page page--admin-detail">
+      <div class="app-shell">
+        <header class="topbar">
+          <a class="brand" href="/admin">
+            <div class="brand-mark">AD</div>
+            <div>
+              <p class="brand-title">Caro Online</p>
+              <p class="brand-subtitle">Chi tiết phòng</p>
+            </div>
+          </a>
+          <div class="topbar-actions">
+            <a class="btn btn-secondary" href="/admin">Quay lại admin</a>
+          </div>
+        </header>
+
+        <div th:if="${adminSuccess}" class="admin-flash admin-flash--success" th:text="${adminSuccess}">Đã lưu thành công.</div>
+        <div th:if="${adminError}" class="admin-flash admin-flash--error" th:text="${adminError}">Có lỗi xảy ra.</div>
+
+        <section class="admin-detail-grid">
+          <section class="glass-card">
+            <p class="eyebrow">Room snapshot</p>
+            <h1 class="section-title" th:text="'Room #' + ${detail.room.id}">Room #1</h1>
+            <div class="detail-metrics">
+              <div class="detail-metric"><span>Trạng thái</span><strong th:text="${detail.room.status}">waiting</strong></div>
+              <div class="detail-metric"><span>Host</span><strong th:text="${detail.room.host != null ? detail.room.host.username : 'Chưa có'}">host</strong></div>
+              <div class="detail-metric"><span>Player 2</span><strong th:text="${detail.room.player2 != null ? detail.room.player2.username : 'Trống'}">player2</strong></div>
+              <div class="detail-metric"><span>Tạo lúc</span><strong th:text="${detail.room.createdAt != null ? #dates.format(detail.room.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">-</strong></div>
+            </div>
+            <div class="detail-actions">
+              <form th:action="@{'/admin/rooms/' + ${detail.room.id} + '/close'}" method="post">
+                <button class="btn btn-secondary" type="submit" data-confirm="Force đóng phòng này?">Force đóng phòng</button>
+              </form>
+              <form th:action="@{'/admin/rooms/' + ${detail.room.id} + '/reset'}" method="post">
+                <button class="btn btn-secondary" type="submit" data-confirm="Reset phòng này về trạng thái trống?">Reset trạng thái</button>
+              </form>
+              <form th:action="@{'/admin/rooms/' + ${detail.room.id} + '/delete'}" method="post">
+                <button class="btn btn-danger" type="submit" data-confirm="Xóa phòng này nếu không còn liên kết dữ liệu?">Xóa phòng</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="glass-card">
+            <p class="eyebrow">Members</p>
+            <h2 class="section-title">Người chơi trong phòng</h2>
+            <div class="mini-list">
+              <div class="mini-row" th:each="membership : ${detail.roomPlayers}">
+                <div>
+                  <strong th:text="${membership.player.username}">user</strong>
+                  <div class="helper-text" th:text="'Ký hiệu ' + ${membership.symbol}">X</div>
+                </div>
+                <a class="btn btn-secondary btn--compact" th:href="@{'/admin/users/' + ${membership.player.id}}">Xem user</a>
+              </div>
+              <div class="empty-state" th:if="${#lists.isEmpty(detail.roomPlayers)}">Phòng hiện không có thành viên hoạt động.</div>
+            </div>
+          </section>
+        </section>
+
+        <section class="glass-card detail-history">
+          <p class="eyebrow">Linked game</p>
+          <h2 class="section-title">Trận gần nhất của phòng</h2>
+          <div th:if="${detail.latestGame != null}" class="mini-row">
+            <div>
+              <strong th:text="'Game #' + ${detail.latestGame.id}">Game #1</strong>
+              <div class="helper-text" th:text="|${detail.latestGame.playerX != null ? detail.latestGame.playerX.username : '-'} vs ${detail.latestGame.playerO != null ? detail.latestGame.playerO.username : '-'}|">A vs B</div>
+            </div>
+            <a class="btn btn-secondary btn--compact" th:href="@{'/admin/games/' + ${detail.latestGame.id}}">Xem trận</a>
+          </div>
+          <div class="empty-state" th:if="${detail.latestGame == null}">Phòng này chưa có trận nào gắn với nó.</div>
+        </section>
+
+        <section class="glass-card detail-history">
+          <p class="eyebrow">Recent chat</p>
+          <h2 class="section-title">20 tin nhắn gần nhất của phòng</h2>
+          <div class="table-scroll">
+            <table class="admin-table">
+              <thead>
+                <tr><th>ID</th><th>Người gửi</th><th>Loại</th><th>Nội dung</th><th>Thời gian</th></tr>
+              </thead>
+              <tbody>
+                <tr th:each="message : ${detail.recentMessages}">
+                  <td th:text="${message.id}">1</td>
+                  <td th:text="${message.sender.username}">sender</td>
+                  <td th:text="${message.type}">TEXT</td>
+                  <td class="cell-content" th:text="${message.content}">Nội dung</td>
+                  <td th:text="${#dates.format(message.createdAt, 'dd/MM/yyyy HH:mm')}">01/04/2026</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(detail.recentMessages)}"><td colspan="5" class="empty-cell">Phòng này chưa có lịch sử chat.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

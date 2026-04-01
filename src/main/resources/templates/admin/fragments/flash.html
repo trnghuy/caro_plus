@@ -1,0 +1,4 @@
+<div class="admin-flash-stack" th:fragment="flashMessages">
+  <div class="admin-flash admin-flash--success" th:if="${adminSuccess != null}" th:text="${adminSuccess}">Đã thực hiện thao tác.</div>
+  <div class="admin-flash admin-flash--error" th:if="${adminError != null}" th:text="${adminError}">Có lỗi xảy ra.</div>
+</div>

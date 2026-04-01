@@ -254,6 +254,13 @@ public class RoomService {
                 .orElse(null);
     }
 
+    @Transactional
+    public Room syncRoomState(Long roomId) {
+        return roomRepository.findById(roomId)
+                .map(this::normalizeRoomState)
+                .orElse(null);
+    }
+
     public List<Room> getAllRooms() {
         return roomRepository.findAllByOrderByCreatedAtDesc()
                 .stream()

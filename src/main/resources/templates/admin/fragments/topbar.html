@@ -1,0 +1,12 @@
+<header class="admin-topbar" th:fragment="topbar(pageTitle)">
+  <div>
+    <p class="admin-topbar-label">Bảng điều khiển</p>
+    <h1 class="admin-workspace-title" th:text="${pageTitle}">Tổng quan hệ thống</h1>
+  </div>
+  <div class="admin-topbar-actions">
+    <a class="btn btn-secondary" href="/home">Trang chủ</a>
+    <form th:action="@{/logout}" method="post">
+      <button class="btn btn-primary" type="submit">Đăng xuất</button>
+    </form>
+  </div>
+</header>

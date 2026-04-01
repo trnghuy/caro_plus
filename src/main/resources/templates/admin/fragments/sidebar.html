@@ -1,0 +1,52 @@
+<aside class="admin-shell" th:fragment="sidebar(activePage, adminUser)">
+  <div class="admin-brandbar">
+    <div class="admin-brand-mark">CG</div>
+    <div>
+      <p class="admin-brand-title">Caro Admin</p>
+      <p class="admin-brand-subtitle">System control panel</p>
+    </div>
+  </div>
+
+  <div class="admin-profile">
+    <div class="admin-profile-avatar" th:text="${#strings.substring(adminUser.username,0,1).toUpperCase()}">A</div>
+    <div>
+      <strong th:text="${adminUser.username}">admin</strong>
+      <p>Quản trị viên hệ thống</p>
+    </div>
+  </div>
+
+  <nav class="admin-side-nav" aria-label="Điều hướng quản trị">
+    <a class="admin-side-link" th:classappend="${activePage == 'dashboard'} ? ' is-active' : ''" th:href="@{/admin}">
+      <span class="admin-side-icon">◎</span>
+      <span>Tổng quan</span>
+    </a>
+    <a class="admin-side-link" th:classappend="${activePage == 'users'} ? ' is-active' : ''" th:href="@{/admin/users}">
+      <span class="admin-side-icon">👤</span>
+      <span>Người dùng</span>
+    </a>
+    <a class="admin-side-link" th:classappend="${activePage == 'rooms'} ? ' is-active' : ''" th:href="@{/admin/rooms}">
+      <span class="admin-side-icon">⌂</span>
+      <span>Phòng</span>
+    </a>
+    <a class="admin-side-link" th:classappend="${activePage == 'games'} ? ' is-active' : ''" th:href="@{/admin/games}">
+      <span class="admin-side-icon">✦</span>
+      <span>Trận đấu</span>
+    </a>
+    <a class="admin-side-link" th:classappend="${activePage == 'messages'} ? ' is-active' : ''" th:href="@{/admin/messages}">
+      <span class="admin-side-icon">✉</span>
+      <span>Chat</span>
+    </a>
+    <a class="admin-side-link" th:classappend="${activePage == 'stats'} ? ' is-active' : ''" th:href="@{/admin/stats}">
+      <span class="admin-side-icon">▲</span>
+      <span>Thống kê</span>
+    </a>
+  </nav>
+
+  <div class="admin-side-foot">
+    <a class="admin-ghost-link" href="/home">Về lobby</a>
+    <div class="admin-note-card">
+      <strong>Seed demo</strong>
+      <p>`admin / admin123` sẽ được tạo tự động nếu hệ thống chưa có admin.</p>
+    </div>
+  </div>
+</aside>

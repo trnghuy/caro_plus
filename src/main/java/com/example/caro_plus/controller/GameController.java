@@ -139,6 +139,10 @@ public class GameController {
             if (undoMessage == null) {
                 return ResponseEntity.badRequest().body(buildSupportError("Hiện tại chưa thể quay lại nước đi trước."));
             }
+            Room room = roomService.getRoomById(roomId);
+            if (room != null) {
+                gameService.removeLastMoves(room, 2);
+            }
             SupportActionResponse response = new SupportActionResponse();
             response.setMessage("Đã quay lại 2 nước gần nhất. Bạn mất 2 sao.");
             response.setSupportPoints(remainingStars);
@@ -189,8 +193,12 @@ public class GameController {
 
         GameMessage response = gameState.makeMove(roomId, principal.getName(), message.getX(), message.getY());
         if (response != null) {
+            Room room = roomService.getRoomById(roomId);
+            if (room != null && response.getX() != null && response.getY() != null
+                    && ("MOVE".equals(response.getType()) || "WIN".equals(response.getType()))) {
+                gameService.recordMove(room, principal.getName(), response.getX(), response.getY());
+            }
             if ("WIN".equals(response.getType())) {
-                Room room = roomService.getRoomById(roomId);
                 if (room != null) {
                     gameService.finishGame(room, response.getWinner());
                 }

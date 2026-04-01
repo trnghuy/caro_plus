@@ -33,4 +33,13 @@ public class User {
     private int win = 0;
     private int lose = 0;
     private int draw = 0;
+
+    @Column(nullable = false, length = 20)
+    private String role = "USER";
+
+    @Column(nullable = false)
+    private boolean enabled = true;
+
+    @Column(nullable = false)
+    private boolean locked = false;
 }

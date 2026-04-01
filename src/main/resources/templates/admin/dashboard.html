@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Admin Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-app">
+      <div th:replace="~{admin/fragments/sidebar :: sidebar(${activePage}, ${adminUser})}"></div>
+      <main class="admin-workspace">
+        <div th:replace="~{admin/fragments/topbar :: topbar(${pageTitle})}"></div>
+        <div class="admin-workspace-scroll">
+          <div th:replace="~{admin/fragments/flash :: flashMessages}"></div>
+
+          <section class="admin-page-stack">
+            <div class="admin-kpi-grid admin-kpi-grid--dashboard">
+              <article class="admin-stat-card admin-stat-card--users">
+                <span class="admin-stat-icon">👥</span>
+                <strong th:text="${overview.totalUsers}">0</strong>
+                <span>Tổng người dùng</span>
+              </article>
+              <article class="admin-stat-card admin-stat-card--rooms">
+                <span class="admin-stat-icon">⌂</span>
+                <strong th:text="${overview.totalRooms}">0</strong>
+                <span>Tổng phòng</span>
+              </article>
+              <article class="admin-stat-card admin-stat-card--games">
+                <span class="admin-stat-icon">✦</span>
+                <strong th:text="${overview.totalMatches}">0</strong>
+                <span>Tổng trận đấu</span>
+              </article>
+              <article class="admin-stat-card admin-stat-card--chat">
+                <span class="admin-stat-icon">✉</span>
+                <strong th:text="${overview.totalMessages}">0</strong>
+                <span>Tổng tin nhắn</span>
+              </article>
+            </div>
+
+            <div class="admin-overview-grid admin-overview-grid--dashboard">
+              <section class="admin-surface admin-surface--compact">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Theo dõi nhanh</p>
+                    <h2 class="admin-panel-title">Sức khỏe hệ thống</h2>
+                  </div>
+                  <a class="btn btn-secondary btn--compact" href="/admin/stats">Xem thống kê</a>
+                </div>
+
+                <div class="admin-health-grid admin-health-grid--dashboard">
+                  <div class="admin-health-item"><span>Người chơi đang hoạt động</span><strong th:text="${overview.activeUsers}">0</strong></div>
+                  <div class="admin-health-item"><span>Phòng chờ</span><strong th:text="${overview.waitingRooms}">0</strong></div>
+                  <div class="admin-health-item"><span>Phòng đang chơi</span><strong th:text="${overview.playingRooms}">0</strong></div>
+                  <div class="admin-health-item"><span>Trận đang diễn ra</span><strong th:text="${overview.playingMatches}">0</strong></div>
+                  <div class="admin-health-item"><span>Admin</span><strong th:text="${overview.adminUsers}">0</strong></div>
+                  <div class="admin-health-item"><span>Tài khoản bị khóa</span><strong th:text="${overview.lockedUsers}">0</strong></div>
+                </div>
+              </section>
+
+              <section class="admin-surface admin-surface--compact">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Top hiện tại</p>
+                    <h2 class="admin-panel-title">Người chơi nổi bật</h2>
+                  </div>
+                </div>
+
+                <div class="admin-spotlight" th:if="${overview.topPlayer != null}">
+                  <div class="admin-spotlight-main">
+                    <strong th:text="${overview.topPlayer.username}">player</strong>
+                    <span th:text="|Điểm ${overview.topPlayer.rankScore} · ★ ${#numbers.formatDecimal(overview.topPlayer.supportPoints, 1, 1)}|">Điểm</span>
+                  </div>
+                  <div class="admin-spotlight-meta">
+                    <span th:text="|Thắng ${overview.topPlayer.win}|">0</span>
+                    <span th:text="|Thua ${overview.topPlayer.lose}|">0</span>
+                    <span th:text="|Hòa ${overview.topPlayer.draw}|">0</span>
+                  </div>
+                </div>
+
+                <div class="admin-stack-list">
+                  <div class="admin-mini-line"><span>Điểm trung bình</span><strong th:text="${#numbers.formatDecimal(overview.averagePoints, 1, 1)}">0</strong></div>
+                  <div class="admin-mini-line"><span>Sao trung bình</span><strong th:text="${#numbers.formatDecimal(overview.averageStars, 1, 1)}">0</strong></div>
+                  <div class="admin-mini-line"><span>Tổng thắng / thua / hòa</span><strong th:text="|${overview.totalWins} / ${overview.totalLosses} / ${overview.totalDraws}|">0</strong></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="admin-overview-grid admin-overview-grid--compact">
+              <section class="admin-surface admin-surface--compact">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Hoạt động gần đây</p>
+                    <h2 class="admin-panel-title">Tóm tắt thay đổi mới nhất</h2>
+                  </div>
+                </div>
+
+                <div class="admin-activity-grid admin-activity-grid--summary">
+                  <article class="admin-activity-block admin-activity-block--summary" th:with="latestUser=${#lists.isEmpty(recentUsers) ? null : recentUsers[0]}">
+                    <div class="admin-activity-head">
+                      <strong>Người dùng mới</strong>
+                      <a href="/admin/users">Xem thêm</a>
+                    </div>
+                    <div class="admin-summary-row" th:if="${latestUser != null}">
+                      <div>
+                        <strong th:text="${latestUser.username}">user</strong>
+                        <p th:text="|Điểm ${latestUser.rankScore} · ★ ${#numbers.formatDecimal(latestUser.supportPoints,1,1)}|">meta</p>
+                      </div>
+                      <span class="badge" th:text="${latestUser.role}">USER</span>
+                    </div>
+                    <div class="empty-state" th:if="${latestUser == null}">Chưa có dữ liệu mới.</div>
+                  </article>
+
+                  <article class="admin-activity-block admin-activity-block--summary" th:with="latestRoom=${#lists.isEmpty(recentRooms) ? null : recentRooms[0]}">
+                    <div class="admin-activity-head">
+                      <strong>Phòng mới cập nhật</strong>
+                      <a href="/admin/rooms">Xem thêm</a>
+                    </div>
+                    <div class="admin-summary-row" th:if="${latestRoom != null}">
+                      <div>
+                        <strong th:text="|Room #${latestRoom.id}|">Room</strong>
+                        <p th:text="${latestRoom.host != null ? latestRoom.host.username : 'Chưa có host'}">host</p>
+                      </div>
+                      <span class="badge" th:text="${latestRoom.status}">waiting</span>
+                    </div>
+                    <div class="empty-state" th:if="${latestRoom == null}">Chưa có dữ liệu mới.</div>
+                  </article>
+
+                  <article class="admin-activity-block admin-activity-block--summary" th:with="latestGame=${#lists.isEmpty(recentGames) ? null : recentGames[0]}">
+                    <div class="admin-activity-head">
+                      <strong>Trận gần đây</strong>
+                      <a href="/admin/games">Xem thêm</a>
+                    </div>
+                    <div class="admin-summary-row" th:if="${latestGame != null}">
+                      <div>
+                        <strong th:text="|Game #${latestGame.id}|">Game</strong>
+                        <p th:text="|${latestGame.playerX != null ? latestGame.playerX.username : '-'} vs ${latestGame.playerO != null ? latestGame.playerO.username : '-'}|">match</p>
+                      </div>
+                      <span class="badge" th:text="${latestGame.status}">PLAYING</span>
+                    </div>
+                    <div class="empty-state" th:if="${latestGame == null}">Chưa có dữ liệu mới.</div>
+                  </article>
+
+                  <article class="admin-activity-block admin-activity-block--summary" th:with="latestMessage=${#lists.isEmpty(recentMessages) ? null : recentMessages[0]}">
+                    <div class="admin-activity-head">
+                      <strong>Tin nhắn gần nhất</strong>
+                      <a href="/admin/messages">Xem thêm</a>
+                    </div>
+                    <div class="admin-summary-row" th:if="${latestMessage != null}">
+                      <div>
+                        <strong th:text="${latestMessage.sender != null ? latestMessage.sender.username : 'Hệ thống'}">sender</strong>
+                        <p th:text="${latestMessage.content}">content</p>
+                      </div>
+                      <span class="badge" th:text="${latestMessage.room != null ? 'Room #' + latestMessage.room.id : 'Chat'}">chat</span>
+                    </div>
+                    <div class="empty-state" th:if="${latestMessage == null}">Chưa có dữ liệu mới.</div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="admin-surface admin-surface--compact">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Đi nhanh</p>
+                    <h2 class="admin-panel-title">Mở module chi tiết</h2>
+                  </div>
+                </div>
+
+                <div class="admin-shortcuts">
+                  <a class="admin-shortcut-card admin-shortcut-card--users" href="/admin/users">
+                    <strong>Quản lý người dùng</strong>
+                    <span>Khóa, đổi quyền, reset sao và xem chi tiết tài khoản.</span>
+                  </a>
+                  <a class="admin-shortcut-card admin-shortcut-card--rooms" href="/admin/rooms">
+                    <strong>Quản lý phòng</strong>
+                    <span>Force close, reset room và kiểm tra host/player hiện tại.</span>
+                  </a>
+                  <a class="admin-shortcut-card admin-shortcut-card--games" href="/admin/games">
+                    <strong>Quản lý trận đấu</strong>
+                    <span>Xem trạng thái, move history và xử lý các trận lỗi.</span>
+                  </a>
+                  <a class="admin-shortcut-card admin-shortcut-card--messages" href="/admin/messages">
+                    <strong>Quản lý chat</strong>
+                    <span>Duyệt nhanh tin nhắn và xóa nội dung không phù hợp.</span>
+                  </a>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

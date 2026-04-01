@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | User Detail</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body>
+    <div class="page page--admin-detail">
+      <div class="app-shell">
+        <header class="topbar">
+          <a class="brand" href="/admin">
+            <div class="brand-mark">AD</div>
+            <div>
+              <p class="brand-title">Caro Online</p>
+              <p class="brand-subtitle">Chi tiết người dùng</p>
+            </div>
+          </a>
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <div class="user-avatar" th:text="${#strings.substring(adminUser.username,0,1).toUpperCase()}">A</div>
+              <div>
+                <strong th:text="${adminUser.username}">admin</strong>
+                <div class="helper-text">Quản trị viên</div>
+              </div>
+            </div>
+            <a class="btn btn-secondary" href="/admin">Quay lại admin</a>
+          </div>
+        </header>
+
+        <div th:if="${adminSuccess}" class="admin-flash admin-flash--success" th:text="${adminSuccess}">Đã lưu thành công.</div>
+        <div th:if="${adminError}" class="admin-flash admin-flash--error" th:text="${adminError}">Có lỗi xảy ra.</div>
+
+        <section class="admin-detail-grid">
+          <section class="glass-card">
+            <p class="eyebrow">User profile</p>
+            <h1 class="section-title" th:text="${detail.user.username}">username</h1>
+            <div class="detail-metrics">
+              <div class="detail-metric"><span>ID</span><strong th:text="${detail.user.id}">1</strong></div>
+              <div class="detail-metric"><span>Quyền</span><strong th:text="${detail.user.role}">USER</strong></div>
+              <div class="detail-metric"><span>Điểm</span><strong th:text="${detail.user.rankScore}">0</strong></div>
+              <div class="detail-metric"><span>Sao</span><strong th:text="${detail.user.supportPoints}">5</strong></div>
+              <div class="detail-metric"><span>W/L/D</span><strong th:text="|${detail.user.win}/${detail.user.lose}/${detail.user.draw}|">0/0/0</strong></div>
+              <div class="detail-metric"><span>Trạng thái</span><strong th:text="${detail.user.locked ? 'Locked' : 'Active'}">Active</strong></div>
+            </div>
+
+            <div class="detail-actions">
+              <form th:action="@{'/admin/users/' + ${detail.user.id} + '/reset-stars'}" method="post">
+                <button class="btn btn-secondary" type="submit" data-confirm="Đặt lại sao của người dùng này về mặc định?">Reset sao</button>
+              </form>
+              <form th:action="@{'/admin/users/' + ${detail.user.id} + '/reset-stats'}" method="post">
+                <button class="btn btn-secondary" type="submit" data-confirm="Đặt lại điểm và thống kê của người dùng này?">Reset điểm / thống kê</button>
+              </form>
+              <form th:if="${!detail.user.locked}" th:action="@{'/admin/users/' + ${detail.user.id} + '/lock'}" method="post">
+                <button class="btn btn-danger" type="submit" data-confirm="Khóa tài khoản này?">Khóa tài khoản</button>
+              </form>
+              <form th:if="${detail.user.locked}" th:action="@{'/admin/users/' + ${detail.user.id} + '/unlock'}" method="post">
+                <button class="btn btn-primary" type="submit">Mở khóa</button>
+              </form>
+              <form th:action="@{'/admin/users/' + ${detail.user.id} + '/delete'}" method="post">
+                <button class="btn btn-danger" type="submit" data-confirm="Xóa người dùng này nếu không còn liên kết dữ liệu?">Xóa tài khoản</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="glass-card">
+            <p class="eyebrow">Active room state</p>
+            <h2 class="section-title">Room hiện còn tham gia</h2>
+            <div class="mini-list">
+              <div class="mini-row" th:each="membership : ${detail.activeRoomMemberships}">
+                <div>
+                  <strong th:text="'Room #' + ${membership.room.id}">Room #1</strong>
+                  <div class="helper-text" th:text="'Ký hiệu ' + ${membership.symbol}">X</div>
+                </div>
+                <a class="btn btn-secondary btn--compact" th:href="@{'/admin/rooms/' + ${membership.room.id}}">Xem phòng</a>
+              </div>
+              <div class="empty-state" th:if="${#lists.isEmpty(detail.activeRoomMemberships)}">Người dùng này hiện không còn trong phòng nào.</div>
+            </div>
+          </section>
+        </section>
+
+        <section class="glass-card detail-history">
+          <p class="eyebrow">Recent matches</p>
+          <h2 class="section-title">10 trận gần nhất</h2>
+          <div class="table-scroll">
+            <table class="admin-table">
+              <thead>
+                <tr><th>Game</th><th>Room</th><th>Player X</th><th>Player O</th><th>Kết quả</th><th>Trạng thái</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr th:each="game : ${detail.recentGames}">
+                  <td th:text="${game.id}">1</td>
+                  <td th:text="${game.room != null ? game.room.id : '-'}">1</td>
+                  <td th:text="${game.playerX != null ? game.playerX.username : '-'}">x</td>
+                  <td th:text="${game.playerO != null ? game.playerO.username : '-'}">o</td>
+                  <td th:text="${game.winner != null ? game.winner.username : ('FINISHED'.equals(game.status) ? 'Hòa' : '-')}">winner</td>
+                  <td th:text="${game.status}">FINISHED</td>
+                  <td><a class="btn btn-secondary btn--compact" th:href="@{'/admin/games/' + ${game.id}}">Chi tiết</a></td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(detail.recentGames)}"><td colspan="7" class="empty-cell">Chưa có lịch sử trận.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

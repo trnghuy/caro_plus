@@ -3,6 +3,8 @@ package com.example.caro_plus.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Date;
+
 @Setter
 @Getter
 @RequiredArgsConstructor
@@ -31,4 +33,10 @@ public class Game {
     private User winner;
 
     private String status;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdAt;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date finishedAt;
 }

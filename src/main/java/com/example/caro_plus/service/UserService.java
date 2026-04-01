@@ -35,6 +35,9 @@ public class UserService {
     public void register(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setCreatedAt(new Date());
+        user.setRole("USER");
+        user.setEnabled(true);
+        user.setLocked(false);
         userRepository.save(user);
     }
 

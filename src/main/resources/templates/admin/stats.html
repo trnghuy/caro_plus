@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Admin Stats</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-app">
+      <div th:replace="~{admin/fragments/sidebar :: sidebar(${activePage}, ${adminUser})}"></div>
+      <main class="admin-workspace">
+        <div th:replace="~{admin/fragments/topbar :: topbar(${pageTitle})}"></div>
+        <div class="admin-workspace-scroll">
+          <div th:replace="~{admin/fragments/flash :: flashMessages}"></div>
+
+          <section class="admin-page-stack">
+            <div class="admin-kpi-grid admin-kpi-grid--stats">
+              <article class="admin-stat-card admin-stat-card--points">
+                <span class="admin-stat-icon">◆</span>
+                <strong th:text="${#numbers.formatDecimal(overview.averagePoints,1,1)}">0</strong>
+                <span>Điểm trung bình</span>
+              </article>
+              <article class="admin-stat-card admin-stat-card--stars">
+                <span class="admin-stat-icon">★</span>
+                <strong th:text="${#numbers.formatDecimal(overview.averageStars,1,1)}">0</strong>
+                <span>Sao trung bình</span>
+              </article>
+              <article class="admin-stat-card admin-stat-card--summary">
+                <span class="admin-stat-icon">▣</span>
+                <strong th:text="${overview.finishedMatches}">0</strong>
+                <span>Trận đã hoàn tất</span>
+              </article>
+            </div>
+
+            <div class="admin-overview-grid">
+              <section class="admin-surface">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Bảng xếp hạng</p>
+                    <h2 class="admin-panel-title">Top theo điểm</h2>
+                  </div>
+                </div>
+                <div class="admin-list-grid">
+                  <div class="admin-list-row" th:each="user : ${topPointUsers}">
+                    <div>
+                      <strong th:text="${user.username}">user</strong>
+                      <p th:text="|Thắng ${user.win} · Hòa ${user.draw} · Thua ${user.lose}|">stats</p>
+                    </div>
+                    <span class="badge" th:text="|Điểm ${user.rankScore}|">Điểm</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="admin-surface">
+                <div class="admin-panel-head">
+                  <div>
+                    <p class="admin-section-tag">Tài nguyên</p>
+                    <h2 class="admin-panel-title">Top theo sao</h2>
+                  </div>
+                </div>
+                <div class="admin-list-grid">
+                  <div class="admin-list-row" th:each="user : ${topStarUsers}">
+                    <div>
+                      <strong th:text="${user.username}">user</strong>
+                      <p th:text="|Điểm ${user.rankScore} · Vai trò ${user.role}|">meta</p>
+                    </div>
+                    <span class="badge" th:text="|★ ${#numbers.formatDecimal(user.supportPoints,1,1)}|">★ 5</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section class="admin-surface">
+              <div class="admin-panel-head">
+                <div>
+                  <p class="admin-section-tag">Tổng hợp</p>
+                  <h2 class="admin-panel-title">Các chỉ số toàn hệ thống</h2>
+                </div>
+              </div>
+              <div class="admin-health-grid">
+                <div class="admin-health-item"><span>Tổng người dùng</span><strong th:text="${overview.totalUsers}">0</strong></div>
+                <div class="admin-health-item"><span>Phòng đang chơi</span><strong th:text="${overview.playingRooms}">0</strong></div>
+                <div class="admin-health-item"><span>Phòng chờ</span><strong th:text="${overview.waitingRooms}">0</strong></div>
+                <div class="admin-health-item"><span>Tổng trận</span><strong th:text="${overview.totalMatches}">0</strong></div>
+                <div class="admin-health-item"><span>Tổng thắng</span><strong th:text="${overview.totalWins}">0</strong></div>
+                <div class="admin-health-item"><span>Tổng hòa</span><strong th:text="${overview.totalDraws}">0</strong></div>
+              </div>
+            </section>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

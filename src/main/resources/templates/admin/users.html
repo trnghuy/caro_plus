@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Admin Users</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/admin.css}" href="/css/admin.css" />
+  </head>
+  <body class="admin-body">
+    <div class="admin-app">
+      <div th:replace="~{admin/fragments/sidebar :: sidebar(${activePage}, ${adminUser})}"></div>
+      <main class="admin-workspace">
+        <div th:replace="~{admin/fragments/topbar :: topbar(${pageTitle})}"></div>
+        <div class="admin-workspace-scroll">
+          <div th:replace="~{admin/fragments/flash :: flashMessages}"></div>
+
+          <section class="admin-surface">
+            <div class="admin-panel-head">
+              <div>
+                <p class="admin-section-tag">Người dùng</p>
+                <h2 class="admin-panel-title">Tìm kiếm, lọc và cập nhật tài khoản</h2>
+              </div>
+            </div>
+
+            <form class="admin-filter-grid" method="get" th:action="@{/admin/users}">
+              <input class="input" type="text" name="userQ" th:value="${userQ}" placeholder="Tìm theo username" />
+              <select class="input" name="userRole">
+                <option value="">Tất cả vai trò</option>
+                <option value="USER" th:selected="${userRole == 'USER'}">USER</option>
+                <option value="ADMIN" th:selected="${userRole == 'ADMIN'}">ADMIN</option>
+              </select>
+              <select class="input" name="userSort">
+                <option value="recent" th:selected="${userSort == 'recent'}">Mới nhất</option>
+                <option value="points" th:selected="${userSort == 'points'}">Điểm cao nhất</option>
+                <option value="stars" th:selected="${userSort == 'stars'}">Sao cao nhất</option>
+                <option value="wins" th:selected="${userSort == 'wins'}">Thắng nhiều nhất</option>
+              </select>
+              <button class="btn btn-primary" type="submit">Lọc</button>
+            </form>
+
+            <div class="admin-table-shell">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Tài khoản</th>
+                    <th>Vai trò</th>
+                    <th>Điểm</th>
+                    <th>Sao</th>
+                    <th>W / L / D</th>
+                    <th>Trạng thái</th>
+                    <th>Tạo lúc</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:if="${users.isEmpty()}"><td class="empty-cell" colspan="9">Không có người dùng phù hợp bộ lọc.</td></tr>
+                  <tr th:each="user : ${users.content}">
+                    <td th:text="${user.id}">1</td>
+                    <td>
+                      <div class="admin-cell-stack">
+                        <strong th:text="${user.username}">user</strong>
+                        <span th:text="${user.locked} ? 'Đang bị khóa' : 'Đang hoạt động'">status</span>
+                      </div>
+                    </td>
+                    <td><span class="badge" th:text="${user.role}">USER</span></td>
+                    <td th:text="${user.rankScore}">0</td>
+                    <td th:text="${#numbers.formatDecimal(user.supportPoints,1,1)}">5.0</td>
+                    <td th:text="|${user.win} / ${user.lose} / ${user.draw}|">0</td>
+                    <td>
+                      <span class="badge badge-danger" th:if="${user.locked}">Locked</span>
+                      <span class="badge badge-ready" th:if="${!user.locked}">Active</span>
+                    </td>
+                    <td th:text="${user.createdAt != null ? #dates.format(user.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                    <td>
+                      <div class="admin-action-wrap">
+                        <a class="btn btn-secondary btn--compact" th:href="@{'/admin/users/' + ${user.id}}">Chi tiết</a>
+                        <form class="inline-form" method="post" th:action="@{'/admin/users/' + ${user.id} + '/role'}">
+                          <select class="input input--compact" name="role">
+                            <option value="USER" th:selected="${user.role == 'USER'}">USER</option>
+                            <option value="ADMIN" th:selected="${user.role == 'ADMIN'}">ADMIN</option>
+                          </select>
+                          <button class="btn btn-secondary btn--compact" type="submit">Lưu quyền</button>
+                        </form>
+                        <form class="inline-form" method="post" th:action="@{'/admin/users/' + ${user.id} + (${user.locked} ? '/unlock' : '/lock')}">
+                          <button class="btn btn-secondary btn--compact" type="submit" th:attr="data-confirm=${user.locked} ? 'Mở khóa tài khoản này?' : 'Khóa tài khoản này?'" th:text="${user.locked} ? 'Mở khóa' : 'Khóa'">Khóa</button>
+                        </form>
+                        <form class="inline-form" method="post" th:action="@{'/admin/users/' + ${user.id} + '/reset-stars'}">
+                          <button class="btn btn-secondary btn--compact" type="submit" data-confirm="Đặt lại sao của tài khoản này về 5?">Reset sao</button>
+                        </form>
+                        <form class="inline-form" method="post" th:action="@{'/admin/users/' + ${user.id} + '/delete'}">
+                          <button class="btn btn-danger btn--compact" type="submit" data-confirm="Xóa tài khoản này? Hành động chỉ thành công nếu không còn dữ liệu liên quan.">Xóa</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="admin-pagination">
+              <span th:text="|Trang ${users.number + 1}/${users.totalPages == 0 ? 1 : users.totalPages}|">Trang 1</span>
+              <div class="admin-pagination-actions">
+                <a class="btn btn-secondary btn--compact" th:if="${users.hasPrevious()}" th:href="@{/admin/users(userPage=${users.number - 1},userQ=${userQ},userRole=${userRole},userSort=${userSort})}">Trang trước</a>
+                <a class="btn btn-secondary btn--compact" th:if="${users.hasNext()}" th:href="@{/admin/users(userPage=${users.number + 1},userQ=${userQ},userRole=${userRole},userSort=${userSort})}">Trang sau</a>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="confirmOverlay" class="admin-confirm-overlay" hidden>
+      <div class="admin-confirm-card">
+        <h3 class="modal-title">Xác nhận thao tác</h3>
+        <p id="confirmMessage" class="modal-copy">Bạn có chắc muốn tiếp tục?</p>
+        <div class="modal-actions modal-actions--center">
+          <button id="confirmCancelButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSubmitButton" class="btn btn-primary" type="button">Xác nhận</button>
+        </div>
+      </div>
+    </div>
+    <script src="/js/admin.js"></script>
+  </body>
+</html>

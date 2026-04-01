@@ -20,6 +20,11 @@ public interface RoomPlayerRepository extends JpaRepository<RoomPlayer, Long> {
 
     int countByRoom(Room room);
 
+    List<RoomPlayer> findByPlayer(User player);
+
+    @Query("SELECT COUNT(DISTINCT rp.player.id) FROM RoomPlayer rp")
+    long countDistinctPlayersInRooms();
+
     @Query
     ("""
     SELECT COUNT(rp) > 0 

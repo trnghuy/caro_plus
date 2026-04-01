@@ -1,14 +1,19 @@
 package com.example.caro_plus.service;
 
 import com.example.caro_plus.model.Game;
+import com.example.caro_plus.model.Move;
 import com.example.caro_plus.model.Room;
 import com.example.caro_plus.model.User;
 import com.example.caro_plus.repository.GameRepository;
+import com.example.caro_plus.repository.MoveRepository;
 import com.example.caro_plus.repository.RoomRepository;
 import com.example.caro_plus.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+import java.util.List;
 
 @Service
 public class GameService {
@@ -22,6 +27,9 @@ public class GameService {
     @Autowired
     private RoomRepository roomRepository;
 
+    @Autowired
+    private MoveRepository moveRepository;
+
     @Transactional
     public Game createGame(Room room) {
         room.setStatus("playing");
@@ -33,6 +41,8 @@ public class GameService {
         game.setPlayerO(savedRoom.getPlayer2());
         game.setStatus("PLAYING");
         game.setWinner(null);
+        game.setCreatedAt(new Date());
+        game.setFinishedAt(null);
         return gameRepository.save(game);
     }
 
@@ -51,6 +61,7 @@ public class GameService {
 
                     game.setWinner(winner);
                     game.setStatus("FINISHED");
+                    game.setFinishedAt(new Date());
                     gameRepository.save(game);
 
                     // After a match ends, the room should no longer stay stuck in "playing".
@@ -89,6 +100,46 @@ public class GameService {
         user.setSupportPoints(adjustSupportPoints(user.getSupportPoints(), -cost));
         userRepository.save(user);
         return user.getSupportPoints();
+    }
+
+    @Transactional
+    public void recordMove(Room room, String username, int x, int y) {
+        if (room == null || username == null || username.isBlank()) {
+            return;
+        }
+
+        Game game = gameRepository.findTopByRoomAndStatusOrderByIdDesc(room, "PLAYING").orElse(null);
+        User player = userRepository.findByUsername(username).orElse(null);
+        if (game == null || player == null) {
+            return;
+        }
+
+        Move move = new Move();
+        move.setGame(game);
+        move.setPlayer(player);
+        move.setX(x);
+        move.setY(y);
+        move.setMoveOrder((int) moveRepository.countByGame(game) + 1);
+        moveRepository.save(move);
+    }
+
+    @Transactional
+    public void removeLastMoves(Room room, int count) {
+        if (room == null || count <= 0) {
+            return;
+        }
+
+        Game game = gameRepository.findTopByRoomAndStatusOrderByIdDesc(room, "PLAYING").orElse(null);
+        if (game == null) {
+            return;
+        }
+
+        List<Move> moves = moveRepository.findTop2ByGameOrderByMoveOrderDesc(game);
+        if (moves.isEmpty()) {
+            return;
+        }
+
+        moveRepository.deleteAll(moves.stream().limit(count).toList());
     }
 
     public void updateRank(User playerX, User playerO, User winner) {
