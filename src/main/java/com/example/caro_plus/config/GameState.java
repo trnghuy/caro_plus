@@ -4,6 +4,9 @@ import com.example.caro_plus.dto.GameSnapshotResponse;
 import com.example.caro_plus.model.GameMessage;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -142,6 +145,7 @@ public class GameState {
         }
 
         session.board[x][y] = symbol;
+        session.moveHistory.add(new MoveRecord(username, symbol, x, y));
         session.lastMoveX = x;
         session.lastMoveY = y;
 
@@ -165,6 +169,97 @@ public class GameState {
         response.setType("MOVE");
         response.setCurrentTurn(session.currentTurn);
         return response;
+    }
+
+    public synchronized GameMessage undoLastMove(Long roomId, String username) {
+        if (!canUndoLastMove(roomId, username)) {
+            return null;
+        }
+
+        RoomSession session = sessions.get(roomId);
+        String requesterSymbol = resolvePlayerSymbol(session, username);
+        MoveRecord lastMove = session.moveHistory.remove(session.moveHistory.size() - 1);
+        MoveRecord previousMove = session.moveHistory.remove(session.moveHistory.size() - 1);
+        session.board[lastMove.x][lastMove.y] = null;
+        session.board[previousMove.x][previousMove.y] = null;
+        session.currentTurn = requesterSymbol;
+        session.winner = null;
+        session.replayRequester = null;
+
+        if (session.moveHistory.isEmpty()) {
+            session.lastMoveX = null;
+            session.lastMoveY = null;
+        } else {
+            MoveRecord remainingLastMove = session.moveHistory.get(session.moveHistory.size() - 1);
+            session.lastMoveX = remainingLastMove.x;
+            session.lastMoveY = remainingLastMove.y;
+        }
+
+        GameMessage response = new GameMessage();
+        response.setType("UNDO");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        response.setCurrentTurn(session.currentTurn);
+        response.setBoard(copyBoard(session.board));
+        response.setLastMoveX(session.lastMoveX);
+        response.setLastMoveY(session.lastMoveY);
+        response.setContent(lastMove.sender + "," + previousMove.sender);
+        return response;
+    }
+
+    public synchronized boolean canUndoLastMove(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        String symbol = session == null ? null : resolvePlayerSymbol(session, username);
+        if (session == null || symbol == null) {
+            return false;
+        }
+
+        if (session.winner != null || session.moveHistory.size() < 2) {
+            return false;
+        }
+
+        return session.playerXConnected && session.playerOConnected && symbol.equals(session.currentTurn);
+    }
+
+    public synchronized SuggestedMove suggestMove(Long roomId, String username) {
+        RoomSession session = sessions.get(roomId);
+        if (session == null) {
+            return null;
+        }
+
+        String symbol = resolvePlayerSymbol(session, username);
+        if (symbol == null || session.winner != null) {
+            return null;
+        }
+
+        if (!session.playerXConnected || !session.playerOConnected) {
+            return null;
+        }
+
+        if (!symbol.equals(session.currentTurn)) {
+            return null;
+        }
+
+        if (isBoardFull(session.board)) {
+            return null;
+        }
+
+        int[] move = findWinningMove(session.board, symbol);
+        if (move == null) {
+            String opponentSymbol = "X".equals(symbol) ? "O" : "X";
+            move = findWinningMove(session.board, opponentSymbol);
+        }
+        if (move == null) {
+            move = findStrategicMove(session.board, symbol);
+        }
+        if (move == null) {
+            move = findFirstEmptyCell(session.board);
+        }
+        if (move == null) {
+            return null;
+        }
+
+        return new SuggestedMove(move[0], move[1]);
     }
 
     public synchronized GameMessage requestReplay(Long roomId, String username) {
@@ -263,6 +358,172 @@ public class GameState {
                 || countLine(board, x, y, 1, -1, symbol) + countLine(board, x, y, -1, 1, symbol) - 1 >= 5;
     }
 
+    private int[] findWinningMove(String[][] board, String symbol) {
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            for (int y = 0; y < BOARD_SIZE; y++) {
+                if (board[x][y] != null) {
+                    continue;
+                }
+
+                board[x][y] = symbol;
+                boolean winningMove = isWinningMove(board, x, y, symbol);
+                board[x][y] = null;
+
+                if (winningMove) {
+                    return new int[] { x, y };
+                }
+            }
+        }
+        return null;
+    }
+
+    private int[] findStrategicMove(String[][] board, String symbol) {
+        if (isBoardEmpty(board)) {
+            return new int[] { BOARD_SIZE / 2, BOARD_SIZE / 2 };
+        }
+
+        String opponentSymbol = "X".equals(symbol) ? "O" : "X";
+        List<int[]> candidates = new ArrayList<>();
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            for (int y = 0; y < BOARD_SIZE; y++) {
+                if (board[x][y] == null && hasAdjacentStone(board, x, y, 2)) {
+                    candidates.add(new int[] { x, y });
+                }
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            return findFirstEmptyCell(board);
+        }
+
+        return candidates.stream()
+                .max(Comparator.comparingInt(candidate -> evaluateStrategicMove(board, candidate[0], candidate[1], symbol, opponentSymbol)))
+                .orElse(candidates.get(0));
+    }
+
+    private int evaluateStrategicMove(String[][] board, int x, int y, String symbol, String opponentSymbol) {
+        int ownPressure = scorePlacement(board, x, y, symbol);
+        int defensivePressure = scorePlacement(board, x, y, opponentSymbol);
+        int centerBias = BOARD_SIZE - (Math.abs(x - BOARD_SIZE / 2) + Math.abs(y - BOARD_SIZE / 2));
+        return ownPressure * 4 + defensivePressure * 2 + centerBias;
+    }
+
+    private int scorePlacement(String[][] board, int x, int y, String symbol) {
+        board[x][y] = symbol;
+        int score = 0;
+        score += evaluateLine(board, x, y, 1, 0, symbol);
+        score += evaluateLine(board, x, y, 0, 1, symbol);
+        score += evaluateLine(board, x, y, 1, 1, symbol);
+        score += evaluateLine(board, x, y, 1, -1, symbol);
+        board[x][y] = null;
+        return score;
+    }
+
+    private int evaluateLine(String[][] board, int x, int y, int dx, int dy, String symbol) {
+        int forward = countDirection(board, x, y, dx, dy, symbol);
+        int backward = countDirection(board, x, y, -dx, -dy, symbol);
+        int total = forward + backward + 1;
+        int openEnds = 0;
+
+        if (isOpenEnd(board, x + dx * (forward + 1), y + dy * (forward + 1))) {
+            openEnds++;
+        }
+        if (isOpenEnd(board, x - dx * (backward + 1), y - dy * (backward + 1))) {
+            openEnds++;
+        }
+
+        if (total >= 5) {
+            return 200000;
+        }
+        if (total == 4 && openEnds == 2) {
+            return 40000;
+        }
+        if (total == 4 && openEnds == 1) {
+            return 16000;
+        }
+        if (total == 3 && openEnds == 2) {
+            return 7000;
+        }
+        if (total == 3 && openEnds == 1) {
+            return 2400;
+        }
+        if (total == 2 && openEnds == 2) {
+            return 550;
+        }
+        if (total == 2 && openEnds == 1) {
+            return 160;
+        }
+        if (openEnds == 2) {
+            return 30;
+        }
+        if (openEnds == 1) {
+            return 10;
+        }
+        return 0;
+    }
+
+    private int countDirection(String[][] board, int startX, int startY, int dx, int dy, String symbol) {
+        int count = 0;
+        int x = startX + dx;
+        int y = startY + dy;
+
+        while (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && symbol.equals(board[x][y])) {
+            count++;
+            x += dx;
+            y += dy;
+        }
+
+        return count;
+    }
+
+    private boolean isOpenEnd(String[][] board, int x, int y) {
+        return x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE && board[x][y] == null;
+    }
+
+    private boolean hasAdjacentStone(String[][] board, int startX, int startY, int radius) {
+        for (int x = Math.max(0, startX - radius); x <= Math.min(BOARD_SIZE - 1, startX + radius); x++) {
+            for (int y = Math.max(0, startY - radius); y <= Math.min(BOARD_SIZE - 1, startY + radius); y++) {
+                if (!(x == startX && y == startY) && board[x][y] != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isBoardFull(String[][] board) {
+        for (String[] row : board) {
+            for (String cell : row) {
+                if (cell == null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isBoardEmpty(String[][] board) {
+        for (String[] row : board) {
+            for (String cell : row) {
+                if (cell != null) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private int[] findFirstEmptyCell(String[][] board) {
+        for (int x = 0; x < BOARD_SIZE; x++) {
+            for (int y = 0; y < BOARD_SIZE; y++) {
+                if (board[x][y] == null) {
+                    return new int[] { x, y };
+                }
+            }
+        }
+        return null;
+    }
+
     private int countLine(String[][] board, int startX, int startY, int dx, int dy, String symbol) {
         int count = 0;
         int x = startX;
@@ -282,6 +543,7 @@ public class GameState {
         session.currentTurn = "X";
         session.winner = null;
         session.replayRequester = null;
+        session.moveHistory = new ArrayList<>();
         session.lastMoveX = null;
         session.lastMoveY = null;
     }
@@ -301,6 +563,7 @@ public class GameState {
         private String currentTurn = "X";
         private String winner;
         private String replayRequester;
+        private List<MoveRecord> moveHistory = new ArrayList<>();
         private boolean playerXConnected = true;
         private boolean playerOConnected = true;
         private Integer lastMoveX;
@@ -309,6 +572,38 @@ public class GameState {
         private RoomSession(String playerX, String playerO) {
             this.playerX = playerX;
             this.playerO = playerO;
+        }
+    }
+
+    public static class SuggestedMove {
+        private final int x;
+        private final int y;
+
+        public SuggestedMove(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        public int getX() {
+            return x;
+        }
+
+        public int getY() {
+            return y;
+        }
+    }
+
+    private static class MoveRecord {
+        private final String sender;
+        private final String symbol;
+        private final int x;
+        private final int y;
+
+        private MoveRecord(String sender, String symbol, int x, int y) {
+            this.sender = sender;
+            this.symbol = symbol;
+            this.x = x;
+            this.y = y;
         }
     }
 }

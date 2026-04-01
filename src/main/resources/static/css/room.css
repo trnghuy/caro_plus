@@ -1,4 +1,4 @@
-body.room-body {
+﻿body.room-body {
   overflow: hidden;
 }
 
@@ -407,4 +407,19 @@ body.room-body {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+
+.room-chat-card .chat-typing {
+  min-height: 18px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.room-chat-card .chat-typing::before {
+  content: "...";
+  letter-spacing: 0.12em;
+  font-weight: 700;
 }

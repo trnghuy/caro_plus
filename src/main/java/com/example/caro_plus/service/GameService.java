@@ -77,6 +77,20 @@ public class GameService {
         return Math.max(updated, 0);
     }
 
+    @Transactional
+    public double spendSupportPoints(String username, double cost) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Nguoi choi khong ton tai"));
+
+        if (user.getSupportPoints() < cost) {
+            throw new IllegalStateException("Bạn không đủ sao để sử dụng trợ giúp này.");
+        }
+
+        user.setSupportPoints(adjustSupportPoints(user.getSupportPoints(), -cost));
+        userRepository.save(user);
+        return user.getSupportPoints();
+    }
+
     public void updateRank(User playerX, User playerO, User winner) {
         if (winner == null) {
             playerX.setSupportPoints(adjustSupportPoints(playerX.getSupportPoints(), 0.5));

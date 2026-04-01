@@ -113,12 +113,38 @@
                 </div>
               </div>
 
-              <div id="resultBanner" class="result-banner">
-                <strong>Kết nối realtime đang hoạt động.</strong>
-                <p id="resultText" class="helper-text result-copy">
-                  Bàn cờ, chat và replay đều dùng lại luồng backend hiện có của dự án.
-                </p>
-              </div>
+              <section class="support-card" aria-labelledby="supportTitle">
+                <div class="support-head">
+                  <div>
+                    <p class="eyebrow">Trợ giúp</p>
+                    <h3 id="supportTitle" class="support-title">Hỗ trợ trong trận</h3>
+                  </div>
+                  <span class="chip chip-tight support-points-chip">
+                    <span class="star-points" aria-hidden="true">★</span>
+                    <strong id="currentSupportPoints">5.0</strong>
+                  </span>
+                </div>
+
+                <div id="supportFeedback" class="support-feedback" hidden></div>
+
+                <div class="support-list">
+                  <div class="support-item">
+                    <div class="support-copy-wrap">
+                      <strong>Quay lại nước đi trước</strong>
+                      <span class="helper-text">Mất 2 sao</span>
+                    </div>
+                    <button id="undoSupportButton" class="btn btn-secondary support-button" type="button">Sử dụng</button>
+                  </div>
+
+                  <div class="support-item">
+                    <div class="support-copy-wrap">
+                      <strong>Gợi ý nước đi</strong>
+                      <span class="helper-text">Mất 3 sao</span>
+                    </div>
+                    <button id="suggestSupportButton" class="btn btn-secondary support-button" type="button">Sử dụng</button>
+                  </div>
+                </div>
+              </section>
 
               <div class="game-actions">
                 <button id="requestReplayButton" class="btn btn-primary" type="button">Yêu cầu chơi lại</button>
@@ -139,6 +165,7 @@
 
               <div class="chat-shell">
                 <div id="chatMessages" class="chat-feed"></div>
+                <div id="chatTypingIndicator" class="chat-typing" hidden></div>
                 <div class="chat-form">
                   <input
                     id="chatInput"
@@ -193,6 +220,17 @@
         <div class="modal-actions modal-actions--center">
           <button id="leaveAfterDisconnectButton" class="btn btn-secondary" type="button">Rời trận</button>
           <button id="waitForReconnectButton" class="btn btn-primary" type="button">Chờ người chơi</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="supportConfirmModal">
+      <div class="modal-card">
+        <h3 id="supportConfirmTitle" class="modal-title">Xác nhận trợ giúp</h3>
+        <p id="supportConfirmMessage" class="modal-copy"></p>
+        <div class="modal-actions modal-actions--center">
+          <button id="cancelSupportConfirmButton" class="btn btn-secondary" type="button">Hủy</button>
+          <button id="confirmSupportConfirmButton" class="btn btn-primary" type="button">Xác nhận</button>
         </div>
       </div>
     </div>

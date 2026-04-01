@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const root = document.querySelector("[data-game-page]");
   if (!root) {
     return;
@@ -13,25 +13,33 @@
   const roomStatus = root.dataset.roomStatus || "playing";
   const renderedIds = new Set();
   const BOARD_SIZE = 20;
+  const UNDO_COST = 2;
+  const SUGGEST_COST = 3;
   let board = createEmptyBoard();
   let currentTurn = root.dataset.currentTurn || "X";
   let winner = "";
   let winnerSymbol = "";
   let lastMove = null;
+  let suggestedMove = null;
   let stompClient = null;
   let opponentConnected = root.dataset.opponentConnected !== "false";
   let shouldAutoDisconnect = true;
   let disconnectSent = false;
+  let supportActionInFlight = false;
+  let pendingSupportAction = null;
+  let currentSupportPoints = 0;
+  let localTypingActive = false;
+  let typingSendTimeout = null;
+  let remoteTypingTimeout = null;
 
   const boardElement = document.getElementById("board");
   const gameSummary = document.getElementById("gameSummary");
   const turnTitle = document.getElementById("turnTitle");
   const turnCopy = document.getElementById("turnCopy");
-  const resultBanner = document.getElementById("resultBanner");
-  const resultText = document.getElementById("resultText");
   const chatFeed = document.getElementById("chatMessages");
   const chatInput = document.getElementById("chatInput");
   const chatStatus = document.getElementById("chatStatus");
+  const chatTypingIndicator = document.getElementById("chatTypingIndicator");
   const winnerModal = document.getElementById("winnerModal");
   const winnerMessage = document.getElementById("winnerMessage");
   const replayRequestModal = document.getElementById("replayRequestModal");
@@ -42,11 +50,109 @@
   const disconnectMessage = document.getElementById("disconnectMessage");
   const hostSupportPoints = document.getElementById("hostSupportPoints");
   const playerTwoSupportPoints = document.getElementById("playerTwoSupportPoints");
+  const currentSupportPointsElement = document.getElementById("currentSupportPoints");
+  const supportFeedback = document.getElementById("supportFeedback");
+  const undoSupportButton = document.getElementById("undoSupportButton");
+  const suggestSupportButton = document.getElementById("suggestSupportButton");
+  const supportConfirmModal = document.getElementById("supportConfirmModal");
+  const supportConfirmTitle = document.getElementById("supportConfirmTitle");
+  const supportConfirmMessage = document.getElementById("supportConfirmMessage");
+  const cancelSupportConfirmButton = document.getElementById("cancelSupportConfirmButton");
+  const confirmSupportConfirmButton = document.getElementById("confirmSupportConfirmButton");
 
   function createEmptyBoard() {
     return Array.from({ length: BOARD_SIZE }, () => Array(BOARD_SIZE).fill(null));
   }
 
+  function getOwnSupportPointsElement() {
+    return currentUsername === hostUsername ? hostSupportPoints : playerTwoSupportPoints;
+  }
+
+  function setCurrentSupportPoints(value) {
+    const numeric = Number(value);
+    currentSupportPoints = Number.isNaN(numeric) ? 0 : numeric;
+
+    const formatted = window.CaroApp.formatPoints(currentSupportPoints);
+    const ownPointsElement = getOwnSupportPointsElement();
+    if (ownPointsElement) {
+      ownPointsElement.textContent = formatted;
+    }
+    if (currentSupportPointsElement) {
+      currentSupportPointsElement.textContent = formatted;
+    }
+
+    updateSupportButtons();
+  }
+
+  function hasAnyMoves() {
+    return board.some((row) => row.some(Boolean));
+  }
+
+  function hasAnyEmptyCell() {
+    return board.some((row) => row.some((cell) => cell == null));
+  }
+
+  function clearSuggestionHighlight() {
+    suggestedMove = null;
+  }
+
+
+  function showTypingIndicator(senderUsername) {
+    if (!chatTypingIndicator || !senderUsername || senderUsername === currentUsername) {
+      return;
+    }
+
+    chatTypingIndicator.hidden = false;
+    chatTypingIndicator.textContent = senderUsername + " đang nhập";
+
+    clearTimeout(remoteTypingTimeout);
+    remoteTypingTimeout = setTimeout(hideTypingIndicator, 1600);
+  }
+
+  function hideTypingIndicator() {
+    if (!chatTypingIndicator) {
+      return;
+    }
+
+    chatTypingIndicator.hidden = true;
+    chatTypingIndicator.textContent = "";
+  }
+
+  function sendTypingStatus(isTyping) {
+    if (!stompClient || !stompClient.connected) {
+      return;
+    }
+
+    localTypingActive = isTyping;
+    stompClient.send(
+      "/app/rooms/" + roomId + "/chat.typing",
+      {},
+      JSON.stringify({ typing: isTyping })
+    );
+  }
+
+  function handleTypingInput() {
+    const hasText = !!(chatInput?.value || "").trim();
+
+    if (!hasText) {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+      clearTimeout(typingSendTimeout);
+      return;
+    }
+
+    if (!localTypingActive) {
+      sendTypingStatus(true);
+    }
+
+    clearTimeout(typingSendTimeout);
+    typingSendTimeout = setTimeout(function () {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+    }, 1200);
+  }
   function renderBoard() {
     if (!boardElement) return;
     boardElement.innerHTML = "";
@@ -64,6 +170,9 @@
         } else if (value === "O") {
           cell.classList.add("symbol-o");
           cell.textContent = "O";
+        } else if (suggestedMove && suggestedMove.x === i && suggestedMove.y === j) {
+          cell.classList.add("suggested-move");
+          cell.setAttribute("aria-label", "Gợi ý nước đi");
         }
 
         if (lastMove && lastMove.x === i && lastMove.y === j) {
@@ -78,8 +187,52 @@
     }
   }
 
+  function updateSupportButtons() {
+    const undoDisabled =
+      supportActionInFlight ||
+      currentSupportPoints < UNDO_COST ||
+      !!winner ||
+      !opponentConnected ||
+      !hasAnyMoves();
+
+    const suggestDisabled =
+      supportActionInFlight ||
+      currentSupportPoints < SUGGEST_COST ||
+      !!winner ||
+      !opponentConnected ||
+      playerSymbol !== currentTurn ||
+      !hasAnyEmptyCell();
+
+    if (undoSupportButton) {
+      undoSupportButton.disabled = undoDisabled;
+      undoSupportButton.textContent = supportActionInFlight && pendingSupportAction?.type === "undo" ? "Đang xử lý..." : "Sử dụng";
+    }
+
+    if (suggestSupportButton) {
+      suggestSupportButton.disabled = suggestDisabled;
+      suggestSupportButton.textContent = supportActionInFlight && pendingSupportAction?.type === "suggestion" ? "Đang xử lý..." : "Sử dụng";
+    }
+  }
+
+  function showSupportFeedback(message, type) {
+    if (!supportFeedback) {
+      return;
+    }
+
+    if (!message) {
+      supportFeedback.hidden = true;
+      supportFeedback.textContent = "";
+      supportFeedback.className = "support-feedback";
+      return;
+    }
+
+    supportFeedback.hidden = false;
+    supportFeedback.textContent = message;
+    supportFeedback.className = "support-feedback support-feedback--" + (type || "info");
+  }
+
   function updateStatusPanel() {
-    if (!turnTitle || !turnCopy || !resultBanner || !resultText) return;
+    if (!turnTitle || !turnCopy) return;
 
     if (gameSummary) {
       gameSummary.classList.remove("state-your-turn", "state-opponent-turn", "state-finished", "state-paused");
@@ -91,12 +244,9 @@
       }
       turnTitle.textContent = "Trận đấu đã kết thúc";
       turnCopy.textContent = winner === currentUsername
-        ? "Bạn là người chiến thắng ở ván này."
-        : winner + " đã giành chiến thắng.";
-      resultBanner.hidden = false;
-      resultText.textContent = winner === currentUsername
-        ? "Chúc mừng. Bạn vừa kiếm thêm điểm xếp hạng."
-        : "Hãy bấm chơi lại để phục thù ngay.";
+        ? "Bạn vừa giành chiến thắng. Có thể dùng chơi lại để bước vào ván mới."
+        : winner + " đã giành chiến thắng. Bạn vẫn có thể dùng trợ giúp ở ván kế tiếp.";
+      updateSupportButtons();
       return;
     }
 
@@ -105,18 +255,12 @@
         gameSummary.classList.add("state-paused");
       }
       turnTitle.textContent = "Đối thủ tạm rời trận";
-      turnCopy.textContent = "Bạn có thể chờ họ quay lại hoặc rời trận. Bàn cờ hiện tại sẽ được giữ nguyên.";
-      resultBanner.hidden = false;
-      resultText.textContent = "Khi đối thủ quay lại và bấm tiếp tục tham gia, trận đấu sẽ tiếp tục từ đúng trạng thái hiện tại.";
+      turnCopy.textContent = "Bạn có thể chờ họ quay lại hoặc rời trận. Bàn cờ hiện tại vẫn được giữ nguyên.";
+      updateSupportButtons();
       return;
     }
 
     const yours = playerSymbol === currentTurn;
-    resultBanner.hidden = false;
-    resultText.textContent = roomStatus === "playing"
-      ? "Bàn cờ đang đồng bộ theo thời gian thực."
-      : "Phòng đang chờ bắt đầu.";
-
     if (gameSummary) {
       gameSummary.classList.add(yours ? "state-your-turn" : "state-opponent-turn");
     }
@@ -125,7 +269,8 @@
     turnCopy.textContent =
       "Ký hiệu của bạn là " +
       playerSymbol +
-      (yours ? ". Hãy đánh nước thật chắc tay." : ". Chờ đối thủ hoàn thành lượt.");
+      (yours ? ". Bạn có thể đánh trực tiếp hoặc dùng trợ giúp nếu cần." : ". Chờ đối thủ hoàn thành lượt trước khi hành động.");
+    updateSupportButtons();
   }
 
   function getOpponentUsername() {
@@ -149,9 +294,10 @@
     hideModal(replayRequestModal);
     hideModal(waitingReplayModal);
     hideModal(disconnectModal);
+    hideModal(supportConfirmModal);
   }
 
-  function showWinnerModal(winnerUsername, symbol) {
+  function showWinnerModal(winnerUsername) {
     if (winnerMessage) {
       const win = winnerUsername === currentUsername;
       winnerMessage.textContent = win ? "Chiến thắng" : "Thua";
@@ -183,6 +329,37 @@
     showModal(disconnectModal);
   }
 
+  function openSupportConfirm(type) {
+    const supportMap = {
+      undo: {
+        type: "undo",
+        title: "Xác nhận quay lại nước đi?",
+        message: "Bạn sẽ mất 2 sao để hoàn tác 2 nước gần nhất.",
+        endpoint: "/api/games/" + roomId + "/support/undo",
+      },
+      suggestion: {
+        type: "suggestion",
+        title: "Xác nhận dùng gợi ý nước đi?",
+        message: "Bạn sẽ mất 3 sao để nhận gợi ý nước đi.",
+        endpoint: "/api/games/" + roomId + "/support/suggestion",
+      },
+    };
+
+    pendingSupportAction = supportMap[type] || null;
+    if (!pendingSupportAction) {
+      return;
+    }
+
+    if (supportConfirmTitle) {
+      supportConfirmTitle.textContent = pendingSupportAction.title;
+    }
+    if (supportConfirmMessage) {
+      supportConfirmMessage.textContent = pendingSupportAction.message;
+    }
+
+    showModal(supportConfirmModal);
+  }
+
   function applySnapshot(snapshot) {
     if (!snapshot) {
       return;
@@ -197,6 +374,7 @@
       ? { x: snapshot.lastMoveX, y: snapshot.lastMoveY }
       : null;
     opponentConnected = snapshot.opponentConnected !== false;
+    clearSuggestionHighlight();
     renderBoard();
     updateStatusPanel();
   }
@@ -212,6 +390,15 @@
 
     if (playerTwoSupportPoints && room.player2) {
       playerTwoSupportPoints.textContent = window.CaroApp.formatPoints(room.player2.supportPoints ?? 5);
+    }
+
+    if (currentUsername === hostUsername && room.host) {
+      setCurrentSupportPoints(room.host.supportPoints ?? 5);
+      return;
+    }
+
+    if (currentUsername === playerTwoUsername && room.player2) {
+      setCurrentSupportPoints(room.player2.supportPoints ?? 5);
     }
   }
 
@@ -231,6 +418,7 @@
     winnerSymbol = "";
     lastMove = null;
     opponentConnected = true;
+    clearSuggestionHighlight();
     hideAllModals();
     renderBoard();
     updateStatusPanel();
@@ -247,6 +435,7 @@
         return;
       }
 
+      clearSuggestionHighlight();
       board[data.x][data.y] = data.player;
       currentTurn = data.currentTurn || currentTurn;
       lastMove = { x: data.x, y: data.y };
@@ -254,10 +443,41 @@
         winner = data.winner || "";
         winnerSymbol = data.player;
         loadPlayerPoints().catch(console.error);
-        showWinnerModal(winner, data.player);
+        showWinnerModal(winner);
       }
       renderBoard();
       updateStatusPanel();
+      return;
+    }
+
+    if (data.type === "UNDO") {
+      board = Array.isArray(data.board)
+        ? data.board.map((row) => Array.isArray(row) ? row.slice() : Array(BOARD_SIZE).fill(null))
+        : createEmptyBoard();
+      currentTurn = data.currentTurn || currentTurn;
+      winner = "";
+      winnerSymbol = "";
+      lastMove = data.lastMoveX != null && data.lastMoveY != null
+        ? { x: data.lastMoveX, y: data.lastMoveY }
+        : null;
+      clearSuggestionHighlight();
+      renderBoard();
+      updateStatusPanel();
+      loadPlayerPoints().catch(console.error);
+      showSupportFeedback(
+        data.sender === currentUsername
+          ? "Đã hoàn tác 2 nước gần nhất."
+          : data.sender + " vừa hoàn tác 2 nước gần nhất.",
+        data.sender === currentUsername ? "success" : "info"
+      );
+      return;
+    }
+
+    if (data.type === "SUPPORT_POINTS_UPDATED") {
+      loadPlayerPoints().catch(console.error);
+      if (data.sender !== currentUsername && data.content === "suggestion") {
+        showSupportFeedback(data.sender + " vừa dùng gợi ý nước đi.", "info");
+      }
       return;
     }
 
@@ -294,13 +514,12 @@
       hideModal(waitingReplayModal);
       hideModal(replayRequestModal);
       if (winner && winnerSymbol) {
-        showWinnerModal(winner, winnerSymbol);
+        showWinnerModal(winner);
       }
       return;
     }
 
     if (data.type === "PLAYER_LEFT" && data.sender !== currentUsername) {
-      alert(data.sender + " đã rời trận đấu.");
       shouldAutoDisconnect = false;
       disconnectSent = true;
       window.location.href = "/room?roomId=" + roomId;
@@ -345,6 +564,19 @@
       stompClient.subscribe("/topic/rooms/" + roomId + "/chat", function (frame) {
         renderChatMessage(JSON.parse(frame.body));
       });
+
+      stompClient.subscribe("/topic/rooms/" + roomId + "/chat.typing", function (frame) {
+        const payload = JSON.parse(frame.body);
+        if (!payload || payload.senderUsername === currentUsername) {
+          return;
+        }
+
+        if (payload.typing) {
+          showTypingIndicator(payload.senderUsername);
+        } else {
+          hideTypingIndicator();
+        }
+      });
     }, function (error) {
       console.error(error);
       if (chatStatus) {
@@ -358,6 +590,9 @@
     if (winner || !opponentConnected) return;
     if (playerSymbol !== currentTurn) return;
     if (board[x][y]) return;
+
+    clearSuggestionHighlight();
+    renderBoard();
 
     stompClient.send(
       "/app/game.move/" + roomId,
@@ -415,6 +650,10 @@
 
     chatFeed.appendChild(line);
     chatFeed.scrollTop = chatFeed.scrollHeight;
+
+    if (message.senderUsername && message.senderUsername !== currentUsername) {
+      hideTypingIndicator();
+    }
   }
 
   async function sendChatMessage() {
@@ -436,6 +675,10 @@
 
     renderChatMessage(await res.json());
     chatInput.value = "";
+    if (localTypingActive) {
+      sendTypingStatus(false);
+    }
+    clearTimeout(typingSendTimeout);
   }
 
   function requestReplay() {
@@ -454,7 +697,7 @@
     if (!stompClient || !stompClient.connected) return;
     hideModal(replayRequestModal);
     if (winner && winnerSymbol) {
-      showWinnerModal(winner, winnerSymbol);
+      showWinnerModal(winner);
     }
     stompClient.send("/app/game.replay.decline/" + roomId, {}, "{}");
   }
@@ -476,7 +719,50 @@
 
     shouldAutoDisconnect = true;
     disconnectSent = false;
-    alert("Không thể rời trận đấu lúc này.");
+    showSupportFeedback("Không thể rời trận đấu lúc này.", "error");
+  }
+
+  async function runSupportAction() {
+    if (!pendingSupportAction || supportActionInFlight) {
+      return;
+    }
+
+    supportActionInFlight = true;
+    hideModal(supportConfirmModal);
+    updateSupportButtons();
+
+    try {
+      const res = await fetch(pendingSupportAction.endpoint, { method: "POST" });
+      let payload = {};
+      try {
+        payload = await res.json();
+      } catch (error) {
+        payload = {};
+      }
+
+      if (!res.ok) {
+        throw new Error(payload.message || "Hiện tại chưa thể dùng trợ giúp này.");
+      }
+
+      if (typeof payload.supportPoints !== "undefined") {
+        setCurrentSupportPoints(payload.supportPoints);
+      }
+
+      if (pendingSupportAction.type === "suggestion") {
+        suggestedMove = payload.suggestedX != null && payload.suggestedY != null
+          ? { x: payload.suggestedX, y: payload.suggestedY }
+          : null;
+        renderBoard();
+      }
+
+      showSupportFeedback(payload.message || "Đã dùng trợ giúp thành công.", "success");
+    } catch (error) {
+      showSupportFeedback(error.message || "Có lỗi xảy ra khi dùng trợ giúp.", "error");
+    } finally {
+      supportActionInFlight = false;
+      pendingSupportAction = null;
+      updateSupportButtons();
+    }
   }
 
   const replayButton = document.getElementById("requestReplayButton");
@@ -503,6 +789,32 @@
   const leaveAfterDisconnectButton = document.getElementById("leaveAfterDisconnectButton");
   if (leaveAfterDisconnectButton) leaveAfterDisconnectButton.addEventListener("click", leaveRoom);
 
+  if (undoSupportButton) {
+    undoSupportButton.addEventListener("click", function () {
+      openSupportConfirm("undo");
+    });
+  }
+
+  if (suggestSupportButton) {
+    suggestSupportButton.addEventListener("click", function () {
+      openSupportConfirm("suggestion");
+    });
+  }
+
+  if (cancelSupportConfirmButton) {
+    cancelSupportConfirmButton.addEventListener("click", function () {
+      pendingSupportAction = null;
+      hideModal(supportConfirmModal);
+      updateSupportButtons();
+    });
+  }
+
+  if (confirmSupportConfirmButton) {
+    confirmSupportConfirmButton.addEventListener("click", function () {
+      runSupportAction().catch(console.error);
+    });
+  }
+
   const sendButton = document.getElementById("sendChatButton");
   if (sendButton) {
     sendButton.addEventListener("click", function () {
@@ -511,6 +823,13 @@
   }
 
   if (chatInput) {
+    chatInput.addEventListener("input", handleTypingInput);
+    chatInput.addEventListener("blur", function () {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+      clearTimeout(typingSendTimeout);
+    });
     chatInput.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -521,6 +840,7 @@
 
   window.addEventListener("pagehide", sendDisconnectBeacon);
 
+  setCurrentSupportPoints(Number(getOwnSupportPointsElement()?.textContent || 0));
   connectWebSocket();
   renderBoard();
   updateStatusPanel();
@@ -531,3 +851,13 @@
     loadChatMessages().catch(console.error);
   }, 4000);
 })();
+
+
+
+
+
+
+
+
+
+

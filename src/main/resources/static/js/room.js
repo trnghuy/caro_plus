@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const root = document.querySelector("[data-room-page]");
   if (!root) {
     return;
@@ -19,10 +19,14 @@
   const chatFeed = document.getElementById("chatMessages");
   const chatInput = document.getElementById("chatInput");
   const chatStatus = document.getElementById("chatStatus");
+  const chatTypingIndicator = document.getElementById("chatTypingIndicator");
   const renderedIds = new Set();
   let stompClient = null;
   let shouldAutoLeave = true;
   let leaveRequestSent = false;
+  let localTypingActive = false;
+  let typingSendTimeout = null;
+  let remoteTypingTimeout = null;
 
   function renderPlayerCard(element, user, symbol, role, isCurrentUser) {
     if (!element) return;
@@ -115,6 +119,63 @@
     updateRoomSummary(await res.json());
   }
 
+
+  function showTypingIndicator(senderUsername) {
+    if (!chatTypingIndicator || !senderUsername || senderUsername === currentUsername) {
+      return;
+    }
+
+    chatTypingIndicator.hidden = false;
+    chatTypingIndicator.textContent = senderUsername + " đang nhập";
+
+    clearTimeout(remoteTypingTimeout);
+    remoteTypingTimeout = setTimeout(hideTypingIndicator, 1600);
+  }
+
+  function hideTypingIndicator() {
+    if (!chatTypingIndicator) {
+      return;
+    }
+
+    chatTypingIndicator.hidden = true;
+    chatTypingIndicator.textContent = "";
+  }
+
+  function sendTypingStatus(isTyping) {
+    if (!stompClient || !stompClient.connected) {
+      return;
+    }
+
+    localTypingActive = isTyping;
+    stompClient.send(
+      "/app/rooms/" + roomId + "/chat.typing",
+      {},
+      JSON.stringify({ typing: isTyping })
+    );
+  }
+
+  function handleTypingInput() {
+    const hasText = !!(chatInput?.value || "").trim();
+
+    if (!hasText) {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+      clearTimeout(typingSendTimeout);
+      return;
+    }
+
+    if (!localTypingActive) {
+      sendTypingStatus(true);
+    }
+
+    clearTimeout(typingSendTimeout);
+    typingSendTimeout = setTimeout(function () {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+    }, 1200);
+  }
   function renderChatMessage(message) {
     if (!message || !message.id || renderedIds.has(message.id) || !chatFeed) {
       return;
@@ -143,6 +204,10 @@
 
     chatFeed.appendChild(line);
     chatFeed.scrollTop = chatFeed.scrollHeight;
+
+    if (message.senderUsername && message.senderUsername !== currentUsername) {
+      hideTypingIndicator();
+    }
   }
 
   async function loadMessages() {
@@ -170,6 +235,10 @@
 
     renderChatMessage(await res.json());
     chatInput.value = "";
+    if (localTypingActive) {
+      sendTypingStatus(false);
+    }
+    clearTimeout(typingSendTimeout);
   }
 
   function sendLeaveBeacon() {
@@ -217,6 +286,19 @@
       stompClient.subscribe("/topic/rooms/" + roomId + "/chat", function (frame) {
         renderChatMessage(JSON.parse(frame.body));
       });
+
+      stompClient.subscribe("/topic/rooms/" + roomId + "/chat.typing", function (frame) {
+        const payload = JSON.parse(frame.body);
+        if (!payload || payload.senderUsername === currentUsername) {
+          return;
+        }
+
+        if (payload.typing) {
+          showTypingIndicator(payload.senderUsername);
+        } else {
+          hideTypingIndicator();
+        }
+      });
     }, function (error) {
       console.error(error);
       if (chatStatus) {
@@ -255,6 +337,13 @@
   }
 
   if (chatInput) {
+    chatInput.addEventListener("input", handleTypingInput);
+    chatInput.addEventListener("blur", function () {
+      if (localTypingActive) {
+        sendTypingStatus(false);
+      }
+      clearTimeout(typingSendTimeout);
+    });
     chatInput.addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -293,3 +382,10 @@
     loadMessages().catch(console.error);
   }, 4000);
 })();
+
+
+
+
+
+
+

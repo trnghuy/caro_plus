@@ -13,4 +13,7 @@ public class GameMessage {
     private String winner;
     private Integer x;      // Move row
     private Integer y;      // Move column
+    private Integer lastMoveX;
+    private Integer lastMoveY;
+    private String[][] board;
 }

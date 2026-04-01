@@ -2,6 +2,7 @@ package com.example.caro_plus.controller;
 
 import com.example.caro_plus.config.GameState;
 import com.example.caro_plus.dto.GameSnapshotResponse;
+import com.example.caro_plus.dto.SupportActionResponse;
 import com.example.caro_plus.model.GameMessage;
 import com.example.caro_plus.model.Room;
 import com.example.caro_plus.security.CustomUserDetails;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.ResponseEntity;
 
 import java.security.Principal;
 import org.springframework.http.HttpStatus;
@@ -117,6 +119,68 @@ public class GameController {
         return snapshot;
     }
 
+    @PostMapping("/api/games/{roomId}/support/undo")
+    @ResponseBody
+    public synchronized ResponseEntity<SupportActionResponse> undoMove(@PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        if (customUserDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String username = customUserDetails.getUsername();
+        if (!gameState.canUndoLastMove(roomId, username)) {
+            return ResponseEntity.badRequest().body(buildSupportError("Hiện tại chưa thể quay lại nước đi trước."));
+        }
+
+        try {
+            double remainingStars = gameService.spendSupportPoints(username, 2);
+            GameMessage undoMessage = gameState.undoLastMove(roomId, username);
+            if (undoMessage == null) {
+                return ResponseEntity.badRequest().body(buildSupportError("Hiện tại chưa thể quay lại nước đi trước."));
+            }
+            SupportActionResponse response = new SupportActionResponse();
+            response.setMessage("Đã quay lại 2 nước gần nhất. Bạn mất 2 sao.");
+            response.setSupportPoints(remainingStars);
+
+            simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, undoMessage);
+            broadcastSupportPointsUpdated(roomId, username, "undo");
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.badRequest().body(buildSupportError(exception.getMessage()));
+        }
+    }
+
+    @PostMapping("/api/games/{roomId}/support/suggestion")
+    @ResponseBody
+    public synchronized ResponseEntity<SupportActionResponse> suggestMove(@PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+
+        if (customUserDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String username = customUserDetails.getUsername();
+        GameState.SuggestedMove suggestion = gameState.suggestMove(roomId, username);
+        if (suggestion == null) {
+            return ResponseEntity.badRequest().body(buildSupportError("Hiện tại chưa thể dùng gợi ý nước đi."));
+        }
+
+        try {
+            double remainingStars = gameService.spendSupportPoints(username, 3);
+            SupportActionResponse response = new SupportActionResponse();
+            response.setMessage("Đã dùng gợi ý nước đi. Bạn mất 3 sao.");
+            response.setSupportPoints(remainingStars);
+            response.setSuggestedX(suggestion.getX());
+            response.setSuggestedY(suggestion.getY());
+
+            broadcastSupportPointsUpdated(roomId, username, "suggestion");
+            return ResponseEntity.ok(response);
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.badRequest().body(buildSupportError(exception.getMessage()));
+        }
+    }
+
     @MessageMapping("/game.move/{roomId}")
     public void makeMove(@DestinationVariable Long roomId, GameMessage message, Principal principal) {
         if (principal == null) {
@@ -173,5 +237,20 @@ public class GameController {
         if (response != null) {
             simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
         }
+    }
+
+    private SupportActionResponse buildSupportError(String message) {
+        SupportActionResponse response = new SupportActionResponse();
+        response.setMessage(message);
+        return response;
+    }
+
+    private void broadcastSupportPointsUpdated(Long roomId, String username, String action) {
+        GameMessage response = new GameMessage();
+        response.setType("SUPPORT_POINTS_UPDATED");
+        response.setRoomId(roomId.toString());
+        response.setSender(username);
+        response.setContent(action);
+        simpMessagingTemplate.convertAndSend("/topic/game/" + roomId, response);
     }
 }
