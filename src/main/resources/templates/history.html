@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caro Online | Lịch sử trận đấu</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+    <link rel="stylesheet" th:href="@{/css/history.css}" href="/css/history.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="app-shell">
+        <header class="topbar">
+          <a class="brand" href="/home">
+            <div class="brand-mark">CG</div>
+            <div>
+              <p class="brand-title">Caro Online</p>
+              <p class="brand-subtitle">Match history</p>
+            </div>
+          </a>
+
+          <nav class="topbar-nav">
+            <a class="nav-pill" href="/home">Lobby</a>
+            <a class="nav-pill active" href="/history">Lịch sử đấu</a>
+            <a class="nav-pill" href="/home#ranking">Xếp hạng</a>
+          </nav>
+
+          <div class="topbar-actions">
+            <div class="user-chip">
+              <div class="user-avatar" th:text="${#strings.substring(user.username,0,1).toUpperCase()}">U</div>
+              <div>
+                <strong th:text="${user.username}">username</strong>
+                <div class="helper-text">Xem các trận đã chơi</div>
+              </div>
+            </div>
+            <a class="btn btn-secondary" href="/logout">Đăng xuất</a>
+          </div>
+        </header>
+
+        <section class="history-layout">
+          <section class="glass-card history-summary">
+            <div class="summary-row">
+              <div>
+                <p class="eyebrow">Match History</p>
+                <h1 class="summary-title">Lịch sử trận đấu</h1>
+                <p class="summary-copy">Theo dõi các trận mới nhất của bạn, kết quả từng trận và số nước đi đã thực hiện.</p>
+              </div>
+              <div class="history-metrics">
+                <span class="chip">Tổng trận: <strong th:text="${historyPage.totalElements}">0</strong></span>
+                <span class="chip">Trang <strong th:text="${historyPage.number + 1}">1</strong>/<strong th:text="${historyPage.totalPages == 0 ? 1 : historyPage.totalPages}">1</strong></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="glass-card">
+            <div class="page-heading history-table-head">
+              <div>
+                <p class="eyebrow">Newest First</p>
+                <h2 class="section-title">Các trận gần đây</h2>
+              </div>
+              <a class="btn btn-secondary" th:href="@{/home}">Về lobby</a>
+            </div>
+
+            <div th:if="${historyItems.isEmpty()}" class="empty-state">
+              Bạn chưa có trận đấu nào.
+            </div>
+
+            <div th:if="${!historyItems.isEmpty()}" class="table-wrap">
+              <table class="table history-table">
+                <thead>
+                  <tr>
+                    <th>Mã trận</th>
+                    <th>Đối thủ</th>
+                    <th>Ký hiệu</th>
+                    <th>Kết quả</th>
+                    <th>Bắt đầu</th>
+                    <th>Kết thúc</th>
+                    <th>Số nước đi</th>
+                    <th>Trạng thái</th>
+                    <th>Điểm hạng</th>
+                    <th>Sao</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="item : ${historyItems}">
+                    <td>
+                      <div class="history-primary">
+                        <strong th:text="${item.gameId}">1</strong>
+                        <span class="helper-text" th:if="${item.roomId != null}" th:text="|Room #${item.roomId}|">Room #1</span>
+                      </div>
+                    </td>
+                    <td th:text="${item.opponentUsername}">opponent</td>
+                    <td><span class="chip chip-symbol" th:text="${item.playerSymbol}">X</span></td>
+                    <td>
+                      <span
+                        th:if="${item.result != null}"
+                        class="badge"
+                        th:classappend="${item.result == 'WIN'} ? ' badge-result-win' : (${item.result == 'LOSE'} ? ' badge-result-lose' : ' badge-result-draw')"
+                        th:text="${item.result}"
+                      >
+                        WIN
+                      </span>
+                      <span th:if="${item.result == null}" class="helper-text">-</span>
+                    </td>
+                    <td th:text="${item.startedAt != null ? #dates.format(item.startedAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                    <td th:text="${item.endedAt != null ? #dates.format(item.endedAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                    <td th:text="${item.totalMoves}">0</td>
+                    <td>
+                      <span
+                        class="badge"
+                        th:classappend="${item.status == 'FINISHED'} ? ' badge-ready' : (${item.status == 'PLAYING'} ? ' badge-playing' : ' badge-danger')"
+                        th:text="${item.status}"
+                      >
+                        FINISHED
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        th:if="${item.rankScoreDelta != null}"
+                        th:class="${item.rankScoreDelta >= 0 ? 'delta delta-positive' : 'delta delta-negative'}"
+                        th:text="${item.rankScoreDelta > 0 ? '+' + item.rankScoreDelta : item.rankScoreDelta}"
+                      >
+                        +3
+                      </span>
+                      <span th:if="${item.rankScoreDelta == null}" class="helper-text">-</span>
+                    </td>
+                    <td>
+                      <span
+                        th:if="${item.supportPointsDelta != null}"
+                        th:class="${item.supportPointsDelta >= 0 ? 'delta delta-positive' : 'delta delta-negative'}"
+                        th:text="${item.supportPointsDelta > 0 ? '+' + #numbers.formatDecimal(item.supportPointsDelta, 1, 1) : #numbers.formatDecimal(item.supportPointsDelta, 1, 1)}"
+                      >
+                        +1.0
+                      </span>
+                      <span th:if="${item.supportPointsDelta == null}" class="helper-text">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="history-pagination" th:if="${historyPage.totalPages > 1}">
+              <a
+                class="btn btn-secondary"
+                th:if="${historyPage.hasPrevious()}"
+                th:href="@{/history(page=${historyPage.number - 1},size=${pageSize})}"
+              >
+                Previous
+              </a>
+
+              <div class="pagination-pages">
+                <a
+                  th:each="pageNumber : ${#numbers.sequence(0, historyPage.totalPages - 1)}"
+                  class="pagination-page"
+                  th:classappend="${pageNumber == historyPage.number} ? ' is-active'"
+                  th:href="@{/history(page=${pageNumber},size=${pageSize})}"
+                  th:text="${pageNumber + 1}"
+                >
+                  1
+                </a>
+              </div>
+
+              <a
+                class="btn btn-secondary"
+                th:if="${historyPage.hasNext()}"
+                th:href="@{/history(page=${historyPage.number + 1},size=${pageSize})}"
+              >
+                Next
+              </a>
+            </div>
+          </section>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>

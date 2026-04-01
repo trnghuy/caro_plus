@@ -6,6 +6,7 @@ import com.example.caro_plus.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,6 +23,9 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Game> findTop5ByOrderByCreatedAtDescIdDesc();
 
     List<Game> findTop10ByPlayerXOrPlayerOOrderByCreatedAtDescIdDesc(User playerX, User playerO);
+
+    @EntityGraph(attributePaths = { "room", "playerX", "playerO", "winner" })
+    Page<Game> findByPlayerXOrPlayerO(User playerX, User playerO, Pageable pageable);
 
     long countByStatus(String status);
 
